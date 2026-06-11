@@ -49,7 +49,7 @@ class Filecheck_Settings {
             update_option( 'filecheck_secret_key', sanitize_text_field( $_POST['filecheck_secret_key'] ) );
             update_option( 'filecheck_agent_id', sanitize_text_field( $_POST['filecheck_agent_id'] ) );
             update_option( 'filecheck_api_url', esc_url_raw( $_POST['filecheck_api_url'] ) );
-            update_option( 'filecheck_default_rule_id', sanitize_text_field( $_POST['filecheck_default_rule_id'] ) );
+            update_option( 'filecheck_default_workflow_id', sanitize_text_field( $_POST['filecheck_default_workflow_id'] ) );
             update_option( 'filecheck_presentation', sanitize_text_field( $_POST['filecheck_presentation'] ) );
             update_option( 'filecheck_block_checkout', isset( $_POST['filecheck_block_checkout'] ) ? 'yes' : 'no' );
             
@@ -61,12 +61,12 @@ class Filecheck_Settings {
         $secret_key      = get_option( 'filecheck_secret_key' );
         $agent_id        = get_option( 'filecheck_agent_id' );
         $api_url         = get_option( 'filecheck_api_url', 'https://api.filecheck.io' );
-        $default_rule_id = get_option( 'filecheck_default_rule_id' );
+        $default_workflow_id = get_option( 'filecheck_default_workflow_id' );
         $presentation    = get_option( 'filecheck_presentation', 'inline' );
         $block_checkout   = get_option( 'filecheck_block_checkout', 'yes' );
         
-        // Fetch active rules
-        $rules = Filecheck_API_Client::instance()->get_rules( $secret_key );
+        // Fetch active workflows
+        $workflows = Filecheck_API_Client::instance()->get_workflows( $secret_key );
         
         ?>
         <div class="wrap">
@@ -125,21 +125,21 @@ class Filecheck_Settings {
                     <table class="form-table" role="presentation">
                         <tbody>
                             <tr>
-                                <th scope="row"><label for="filecheck_default_rule_id"><?php _e( 'Default Rule', 'filecheck-woocommerce' ); ?></label></th>
+                                <th scope="row"><label for="filecheck_default_workflow_id"><?php _e( 'Default Workflow', 'filecheck-woocommerce' ); ?></label></th>
                                 <td>
-                                    <select name="filecheck_default_rule_id" id="filecheck_default_rule_id" style="min-width: 25em;">
-                                        <option value=""><?php _e( 'Select a rule...', 'filecheck-woocommerce' ); ?></option>
-                                        <?php if ( is_array( $rules ) ) : ?>
-                                            <?php foreach ( $rules as $rule ) : ?>
-                                                <?php if ( isset( $rule['id'] ) && isset( $rule['title'] ) ) : ?>
-                                                    <option value="<?php echo esc_attr( $rule['id'] ); ?>" <?php selected( $default_rule_id, $rule['id'] ); ?>>
-                                                        <?php echo esc_html( $rule['title'] . ' (' . $rule['id'] . ')' ); ?>
+                                    <select name="filecheck_default_workflow_id" id="filecheck_default_workflow_id" style="min-width: 25em;">
+                                        <option value=""><?php _e( 'Select a workflow...', 'filecheck-woocommerce' ); ?></option>
+                                        <?php if ( is_array( $workflows ) ) : ?>
+                                            <?php foreach ( $workflows as $workflow ) : ?>
+                                                <?php if ( isset( $workflow['id'] ) && isset( $workflow['title'] ) ) : ?>
+                                                    <option value="<?php echo esc_attr( $workflow['id'] ); ?>" <?php selected( $default_workflow_id, $workflow['id'] ); ?>>
+                                                        <?php echo esc_html( $workflow['title'] . ' (' . $workflow['id'] . ')' ); ?>
                                                     </option>
                                                 <?php endif; ?>
                                             <?php endforeach; ?>
                                         <?php endif; ?>
                                     </select>
-                                    <p class="description"><?php _e( 'Default validation rule. Can be overridden per product.', 'filecheck-woocommerce' ); ?></p>
+                                    <p class="description"><?php _e( 'Default workflow. Can be overridden per product.', 'filecheck-woocommerce' ); ?></p>
                                 </td>
                             </tr>
                             <tr>

@@ -17,8 +17,9 @@ class Filecheck_Fulfillment {
         add_action( 'woocommerce_order_status_processing', array( $this, 'process_order_files' ), 10, 1 );
         add_action( 'woocommerce_order_status_completed', array( $this, 'process_order_files' ), 10, 1 );
         
-        // Add meta box to admin order view
+        // Add meta box to admin order view (legacy CPT and HPOS screens)
         add_action( 'add_meta_boxes_shop_order', array( $this, 'add_order_metabox' ) );
+        add_action( 'add_meta_boxes_woocommerce_page_wc-orders', array( $this, 'add_order_metabox' ) );
         
         // Handle secure file download request for admin
         add_action( 'admin_init', array( $this, 'handle_secure_download' ) );

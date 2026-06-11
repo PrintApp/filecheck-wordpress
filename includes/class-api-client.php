@@ -38,7 +38,7 @@ class Filecheck_API_Client {
             return new WP_Error( 'missing_key', __( 'Secret key is required.', 'filecheck-woocommerce' ) );
         }
         
-        $url = $this->api_url . '/rules/';
+        $url = $this->api_url . '/workflows/';
         $response = wp_remote_get( $url, array(
             'headers' => $this->get_headers( $secret_key ),
             'timeout' => 15,
@@ -62,7 +62,7 @@ class Filecheck_API_Client {
         return new WP_Error( 'auth_failed', $message );
     }
     
-    public function get_rules( $secret_key = '' ) {
+    public function get_workflows( $secret_key = '' ) {
         if ( empty( $secret_key ) ) {
             $secret_key = get_option( 'filecheck_secret_key' );
         }
@@ -71,7 +71,7 @@ class Filecheck_API_Client {
             return array();
         }
         
-        $url = $this->api_url . '/rules/';
+        $url = $this->api_url . '/workflows/';
         $response = wp_remote_get( $url, array(
             'headers' => $this->get_headers( $secret_key ),
             'timeout' => 15,
@@ -87,8 +87,8 @@ class Filecheck_API_Client {
         }
         
         $body = json_decode( wp_remote_retrieve_body( $response ), true );
-        if ( isset( $body['rules'] ) && is_array( $body['rules'] ) ) {
-            return $body['rules'];
+        if ( isset( $body['workflows'] ) && is_array( $body['workflows'] ) ) {
+            return $body['workflows'];
         }
         
         return is_array( $body ) ? $body : array();

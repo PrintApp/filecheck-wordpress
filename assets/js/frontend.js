@@ -31,7 +31,7 @@
             return;
         }
         
-        var ruleId        = filecheck_params.rule_id;
+        var workflowId    = filecheck_params.workflow_id;
         var presentation  = filecheck_params.presentation;
         var agentId       = filecheck_params.agent_id;
         var blockCheckout = filecheck_params.block_checkout;
@@ -59,68 +59,34 @@
             var el;
             
             if (presentation === 'dialog') {
-                // Setup premium modal DOM overlay elements dynamically
-                var modalId = 'fc-modal-wrap-' + productId;
-                var modal = document.createElement('div');
-                modal.id = modalId;
-                modal.className = 'fc-modal-overlay';
-                modal.innerHTML = '<div class="fc-modal-content">' +
-                    '<button type="button" class="fc-modal-close" aria-label="Close modal">&times;</button>' +
-                    '<div class="fc-modal-body"></div>' +
-                '</div>';
-                
-                document.body.appendChild(modal);
-                
-                // Reparent the slot into the modal body
-                var modalBody = modal.querySelector('.fc-modal-body');
-                if (modalBody) {
-                    modalBody.appendChild(slot);
-                }
-                
-                // Render trigger button
+                // Render trigger button; the element's own dialog UI handles the overlay
                 var triggerBtn = document.createElement('button');
                 triggerBtn.type = 'button';
                 triggerBtn.className = 'button alt fc-trigger-btn';
                 triggerBtn.textContent = 'Upload & Verify Files';
                 
-                // Insert before the add-to-cart button or inside the form
                 if (button) {
                     button.parentNode.insertBefore(triggerBtn, button);
                 } else {
                     form.appendChild(triggerBtn);
                 }
                 
-                // Modal events
                 triggerBtn.addEventListener('click', function(e) {
                     e.preventDefault();
-                    modal.classList.add('fc-show');
                     if (el) {
                         el.focus();
                     }
                 });
                 
-                var closeBtn = modal.querySelector('.fc-modal-close');
-                if (closeBtn) {
-                    closeBtn.addEventListener('click', function() {
-                        modal.classList.remove('fc-show');
-                    });
-                }
-                
-                modal.addEventListener('click', function(e) {
-                    if (e.target === modal) {
-                        modal.classList.remove('fc-show');
-                    }
-                });
-                
-                // Create intake element
+                // Create intake element in dialog mode — the element manages its own dialog UI
                 el = fc.elements.create('intake', {
-                    ruleId: ruleId,
+                    workflowId: workflowId,
                     presentation: 'dialog'
                 });
             } else {
                 // Inline mode
                 el = fc.elements.create('intake', {
-                    ruleId: ruleId,
+                    workflowId: workflowId,
                     presentation: 'inline'
                 });
             }
@@ -130,8 +96,6 @@
             
             // Handle events
             el.on('status', function(e) {
-                console.log('[Filecheck WooCommerce] Status update:', e);
-                
                 // Save Job ID & canProceed
                 var jobInput = form.querySelector('input[name="filecheck_job_id"]');
                 var proceedInput = form.querySelector('input[name="filecheck_can_proceed"]');

@@ -34,23 +34,23 @@ class Filecheck_Product {
         $product_id = $post->ID;
         
         // Fetch saved metadata values
-        $rule_id      = get_post_meta( $product_id, '_filecheck_rule_id', true );
-        if ( empty( $rule_id ) ) {
-            $rule_id = 'none';
+        $workflow_id  = get_post_meta( $product_id, '_filecheck_workflow_id', true );
+        if ( empty( $workflow_id ) ) {
+            $workflow_id = 'none';
         }
         $presentation = get_post_meta( $product_id, '_filecheck_presentation', true );
         
-        // Fetch active rules from Filecheck API
-        $rules = Filecheck_API_Client::instance()->get_rules();
-        $rule_options = array(
+        // Fetch active workflows from Filecheck API
+        $workflows = Filecheck_API_Client::instance()->get_workflows();
+        $workflow_options = array(
             'none'   => __( 'None (Disabled)', 'filecheck-woocommerce' ),
             'global' => __( 'Use Global Default', 'filecheck-woocommerce' )
         );
         
-        if ( is_array( $rules ) ) {
-            foreach ( $rules as $rule ) {
-                if ( isset( $rule['id'] ) && isset( $rule['title'] ) ) {
-                    $rule_options[ $rule['id'] ] = $rule['title'] . ' (' . $rule['id'] . ')';
+        if ( is_array( $workflows ) ) {
+            foreach ( $workflows as $workflow ) {
+                if ( isset( $workflow['id'] ) && isset( $workflow['title'] ) ) {
+                    $workflow_options[ $workflow['id'] ] = $workflow['title'] . ' (' . $workflow['id'] . ')';
                 }
             }
         }
@@ -59,13 +59,13 @@ class Filecheck_Product {
         <div id="filecheck_product_data" class="panel woocommerce_options_panel hidden">
             <div class="options_group">
                 <?php
-                // Rule ID override dropdown
+                // Workflow ID override dropdown
                 woocommerce_wp_select( array(
-                    'id'            => '_filecheck_rule_id',
-                    'label'         => __( 'Validation Rule', 'filecheck-woocommerce' ),
-                    'description'   => __( 'Select the rule to validate uploads against. "None" disables Filecheck for this product.', 'filecheck-woocommerce' ),
-                    'options'       => $rule_options,
-                    'value'         => $rule_id,
+                    'id'            => '_filecheck_workflow_id',
+                    'label'         => __( 'Workflow', 'filecheck-woocommerce' ),
+                    'description'   => __( 'Select the workflow to validate uploads against. "None" disables Filecheck for this product.', 'filecheck-woocommerce' ),
+                    'options'       => $workflow_options,
+                    'value'         => $workflow_id,
                 ) );
                 
                 // Presentation mode override dropdown
@@ -87,10 +87,10 @@ class Filecheck_Product {
     }
     
     public function save_product_settings( $product_id ) {
-        $rule_id      = isset( $_POST['_filecheck_rule_id'] ) ? sanitize_text_field( $_POST['_filecheck_rule_id'] ) : 'none';
+        $workflow_id  = isset( $_POST['_filecheck_workflow_id'] ) ? sanitize_text_field( $_POST['_filecheck_workflow_id'] ) : 'none';
         $presentation = isset( $_POST['_filecheck_presentation'] ) ? sanitize_text_field( $_POST['_filecheck_presentation'] ) : '';
         
-        update_post_meta( $product_id, '_filecheck_rule_id', $rule_id );
+        update_post_meta( $product_id, '_filecheck_workflow_id', $workflow_id );
         update_post_meta( $product_id, '_filecheck_presentation', $presentation );
     }
 }

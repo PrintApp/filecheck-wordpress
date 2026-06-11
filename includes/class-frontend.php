@@ -26,24 +26,24 @@ class Filecheck_Frontend {
         
         $product_id = $product->get_id();
         
-        // Determine Rule ID
-        $rule_id = get_post_meta( $product_id, '_filecheck_rule_id', true );
-        if ( empty( $rule_id ) ) {
-            $rule_id = 'none';
+        // Determine Workflow ID
+        $workflow_id = get_post_meta( $product_id, '_filecheck_workflow_id', true );
+        if ( empty( $workflow_id ) ) {
+            $workflow_id = 'none';
         }
         
-        if ( 'none' === $rule_id ) {
+        if ( 'none' === $workflow_id ) {
             return;
         }
         
-        if ( 'global' === $rule_id ) {
-            $rule_id = get_option( 'filecheck_default_rule_id' );
+        if ( 'global' === $workflow_id ) {
+            $workflow_id = get_option( 'filecheck_default_workflow_id' );
         }
         
-        if ( empty( $rule_id ) ) {
-            // No rule configured, output a warning for admin
+        if ( empty( $workflow_id ) ) {
+            // No workflow configured, output a warning for admin
             if ( current_user_can( 'manage_woocommerce' ) ) {
-                echo '<div style="color:red; margin: 10px 0;">' . __( 'Filecheck error: Global default rule is not configured.', 'filecheck-woocommerce' ) . '</div>';
+                echo '<div style="color:red; margin: 10px 0;">' . __( 'Filecheck error: Global default workflow is not configured.', 'filecheck-woocommerce' ) . '</div>';
             }
             return;
         }
@@ -58,7 +58,7 @@ class Filecheck_Frontend {
         <div id="fc-slot-<?php echo esc_attr( $product_id ); ?>" 
              class="fc-slot-wrapper" 
              data-product-id="<?php echo esc_attr( $product_id ); ?>"
-             data-rule-id="<?php echo esc_attr( $rule_id ); ?>"
+             data-workflow-id="<?php echo esc_attr( $workflow_id ); ?>"
              data-presentation="<?php echo esc_attr( $presentation ); ?>"></div>
              
         <input type="hidden" name="filecheck_job_id" id="fc-jobid" value="">
@@ -78,13 +78,13 @@ class Filecheck_Frontend {
         
         $product_id = $product->get_id();
         
-        // Determine Rule ID
-        $rule_id = get_post_meta( $product_id, '_filecheck_rule_id', true );
-        if ( empty( $rule_id ) ) {
-            $rule_id = 'none';
+        // Determine Workflow ID
+        $workflow_id = get_post_meta( $product_id, '_filecheck_workflow_id', true );
+        if ( empty( $workflow_id ) ) {
+            $workflow_id = 'none';
         }
         
-        if ( 'none' === $rule_id ) {
+        if ( 'none' === $workflow_id ) {
             return;
         }
         
@@ -93,8 +93,8 @@ class Filecheck_Frontend {
             return; // Can't render without publishable key
         }
         
-        if ( 'global' === $rule_id ) {
-            $rule_id = get_option( 'filecheck_default_rule_id' );
+        if ( 'global' === $workflow_id ) {
+            $workflow_id = get_option( 'filecheck_default_workflow_id' );
         }
         
         $presentation = get_post_meta( $product_id, '_filecheck_presentation', true );
@@ -105,10 +105,10 @@ class Filecheck_Frontend {
         $agent_id = get_option( 'filecheck_agent_id' );
         $block_checkout = get_option( 'filecheck_block_checkout', 'yes' );
         
-        // Enqueue Filecheck CDN Element script
+        // Enqueue Filecheck CDN Element script (pk-specific URL embeds tenant config)
         wp_enqueue_script(
             'filecheck-cdn-element',
-            'https://cdn.filecheck.io/element/v1/filecheck.js',
+            'https://cdn.filecheck.io/element/' . rawurlencode( $pk ) . '/filecheck.js',
             array(),
             null,
             false // load early
@@ -127,7 +127,7 @@ class Filecheck_Frontend {
         wp_localize_script( 'filecheck-frontend', 'filecheck_params', array(
             'publishable_key' => $pk,
             'agent_id'        => $agent_id,
-            'rule_id'         => $rule_id,
+            'workflow_id'     => $workflow_id,
             'presentation'    => $presentation,
             'block_checkout'  => ( 'yes' === $block_checkout ),
             'product_id'      => $product_id,
