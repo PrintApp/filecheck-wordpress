@@ -1,0 +1,56 @@
+/* Filecheck WooCommerce Admin Styles */
+
+#filecheck_product_data .options_group {
+    padding: 15px;
+}
+
+#filecheck_product_data p.form-field {
+    padding-left: 0 !important;
+    margin-bottom: 15px;
+}
+
+#filecheck_product_data p.form-field label {
+    font-weight: 600;
+    margin-bottom: 4px;
+    display: block;
+}
+
+#filecheck-test-connection {
+    margin-top: 5px;
+}
+
+#filecheck-connection-result {
+    font-size: 13px;
+    padding: 2px 10px;
+    border-radius: 3px;
+}
+
+/* Custom WooCommerce Product Data Tab Icon */
+#woocommerce-product-data ul.wc-tabs li.filecheck_tab a::before,
+.woocommerce_options_panels li.filecheck_tab a::before {
+    content: "" !important;
+    background-image: url('../images/icon.svg') !important;
+    background-size: contain !important;
+    background-repeat: no-repeat !important;
+    background-position: center !important;
+    width: 14px !important;
+    height: 14px !important;
+    display: inline-block !important;
+    vertical-align: middle !important;
+    margin-right: 5px !important;
+    speak: none;
+}
+
+/* Sidebar menu icon sizing */
+#adminmenu .toplevel_page_filecheck-settings .wp-menu-image img {
+    width: 18px !important;
+    height: 18px !important;
+    padding: 0 !important;
+    margin-top: 2px !important;
+    opacity: 0.8;
+}
+#adminmenu .toplevel_page_filecheck-settings:hover .wp-menu-image img,
+#adminmenu .toplevel_page_filecheck-settings.wp-has-current-submenu .wp-menu-image img {
+    opacity: 1;
+}
+
