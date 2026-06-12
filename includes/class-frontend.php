@@ -18,12 +18,11 @@ class Filecheck_Frontend {
     }
     
     public function render_filecheck_element() {
-        global $product;
-        
-        if ( ! $product ) {
+        $product = wc_get_product( get_queried_object_id() );
+        if ( ! $product instanceof WC_Product ) {
             return;
         }
-        
+
         $product_id = $product->get_id();
         
         // Determine Workflow ID
@@ -71,11 +70,11 @@ class Filecheck_Frontend {
             return;
         }
         
-        global $product;
-        if ( ! $product ) {
+        $product = wc_get_product( get_queried_object_id() );
+        if ( ! $product instanceof WC_Product ) {
             return;
         }
-        
+
         $product_id = $product->get_id();
         
         // Determine Workflow ID

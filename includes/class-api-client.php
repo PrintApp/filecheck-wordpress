@@ -87,8 +87,12 @@ class Filecheck_API_Client {
         }
         
         $body = json_decode( wp_remote_retrieve_body( $response ), true );
+        // Handle both possible envelope keys from the API
         if ( isset( $body['workflows'] ) && is_array( $body['workflows'] ) ) {
             return $body['workflows'];
+        }
+        if ( isset( $body['rules'] ) && is_array( $body['rules'] ) ) {
+            return $body['rules'];
         }
         
         return is_array( $body ) ? $body : array();
