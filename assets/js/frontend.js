@@ -32,6 +32,7 @@
         }
         
         var workflowId    = filecheck_params.workflow_id;
+        var connectorId   = filecheck_params.connector_id;
         var presentation  = filecheck_params.presentation;
         var agentId       = filecheck_params.agent_id;
         var blockCheckout = filecheck_params.block_checkout;
@@ -79,16 +80,14 @@
                 });
                 
                 // Create intake element in dialog mode — the element manages its own dialog UI
-                el = fc.elements.create('intake', {
-                    workflowId: workflowId,
-                    presentation: 'dialog'
-                });
+                var dialogOpts = { workflowId: workflowId, presentation: 'dialog' };
+                if (connectorId) { dialogOpts.connectorId = connectorId; }
+                el = fc.elements.create('intake', dialogOpts);
             } else {
                 // Inline mode
-                el = fc.elements.create('intake', {
-                    workflowId: workflowId,
-                    presentation: 'inline'
-                });
+                var inlineOpts = { workflowId: workflowId, presentation: 'inline' };
+                if (connectorId) { inlineOpts.connectorId = connectorId; }
+                el = fc.elements.create('intake', inlineOpts);
             }
             
             // Mount the element

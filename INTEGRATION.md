@@ -65,6 +65,9 @@ const intake = fc.elements.create('intake', {
     jobId?:        'job_...', // resume an existing job (workflowId ignored)
     locale?:       'en-US',
     presentation?: 'inline',  // 'inline' (default) | 'dialog'
+    connector?:    { … },     // map file facts → product-page controls (see §6)
+    connectorId?:  'cntr_...',// reserved: server-side connector resolution
+    onConnectorApply?: (results) => {}, // per-binding apply report (debug)
     ui?: {
         title?:       string,
         subtitle?:    string,
@@ -84,6 +87,7 @@ intake.mount('#fc-slot');           // or .mount(htmlElement)
 
 intake.on('ready',   ({ ui })            => { /* iframe ready; ui = resolved IntakeUi */ });
 intake.on('status',  (payload)           => { /* IntakeStatusPayload — see §4 */ });
+intake.on('facts',   (facts)             => { /* IntakeFacts — file measurements, see §6 */ });
 intake.on('ui',      (ui)               => { /* UI changed after update() */ });
 intake.on('error',   ({ code, message }) => { /* recoverable iframe error */ });
 intake.on('proof',   (payload)           => { /* soft-proof ready — see §5 */ });
@@ -100,6 +104,8 @@ intake.update({
 intake.focus();                     // open modal/drawer layout programmatically
 intake.blur();
 intake.respondToProof(true);        // approve soft-proof gate (see §5)
+intake.setConnector({ … });         // replace the active connector at runtime (see §6)
+intake.applyNow();                  // re-run the connector against the last facts
 intake.unmount();
 ```
 
@@ -180,7 +186,127 @@ built-in iframe gallery handles it automatically.
 
 ---
 
-## 6. Loading async
+## 6. Connector — sync file facts to product-page controls
+
+A **Connector** maps facts Filecheck derives about the uploaded file (page
+count, page dimensions, area) onto the host product page's own controls
+(quantity, width, height, size). The merchant authors it in the Filecheck
+admin (**Library → Connectors**); the plugin just passes it to the element,
+which writes the values into the page DOM automatically on every `status`
+update. **No host wiring is required** beyond supplying the config.
+
+Typical uses: set **quantity** from page count (multi-page PDF → N prints),
+or fill **width/height** inputs from the artwork's dimensions (canvas, banner,
+sticker), with unit conversion.
+
+### 6.1 The `facts` event
+
+Independently of any connector, the element emits `facts` alongside every
+`status` event so you can drive your own custom logic:
+
+```ts
+interface IntakeFacts {
+    files: Array<{
+        id: string | null;
+        name: string | null;
+        pageCount: number | null;
+        width:  number | null;   // mm
+        height: number | null;   // mm
+        area:   number | null;   // mm²
+        orientation: string | null;
+        spotColorCount: number;
+        usesTransparency: boolean;
+    }>;
+    aggregate: {
+        fileCount: number;
+        pageCount: number;       // summed across files
+        width:  number | null;   // first file (mm)
+        height: number | null;   // first file (mm)
+        area:   number | null;   // first file (mm²)
+    };
+}
+```
+
+```js
+intake.on('facts', (facts) => {
+    // e.g. drive a custom price preview
+    console.log(facts.aggregate.pageCount, facts.aggregate.width);
+});
+```
+
+> Dimensions are always millimetres. Multi-file uploads use the **first
+> file** for width/height/area; counts aggregate across all files.
+
+### 6.2 Applying a connector
+
+Pass the connector config inline. The element resolves each binding's value
+and writes it to the first matching host element, dispatching `input` +
+`change` so the theme's own framework (React/Vue/jQuery) reacts:
+
+```js
+const intake = fc.elements.create('intake', {
+    workflowId: 'wf_...',
+    connector: {
+        title: 'Canvas size sync',
+        bindings: [
+            // multi-page PDF → quantity input
+            { source: 'pageCount', control: 'quantity' },
+            // artwork dimensions → width / height inputs, converted mm → cm
+            { source: 'width',  control: 'width',  convertTo: 'cm', decimals: 1 },
+            { source: 'height', control: 'height', convertTo: 'cm', decimals: 1 },
+            // area in cm² (conversion factor is squared automatically), rounded up
+            { source: 'area',   control: 'area',   convertTo: 'cm', round: 'ceil' },
+        ],
+    },
+    onConnectorApply: (results) => console.log('connector applied', results),
+});
+```
+
+You can also set or replace the connector at runtime:
+
+```js
+intake.setConnector(connectorConfig);  // re-applies against the last facts
+intake.applyNow();                      // force a re-apply (e.g. after DOM swap)
+```
+
+### 6.3 Binding shape
+
+```ts
+interface ConnectorBinding {
+    source:          'pageCount' | 'fileCount' | 'width' | 'height' | 'area';
+    control?:        'quantity' | 'width' | 'height' | 'area';  // auto-fills preset selectors
+    customSelector?: string;        // CSS selector tried FIRST (theme-specific)
+    set?:            'value' | 'text' | 'attr';  // how to write (default 'value')
+    attr?:           string;        // attribute name when set === 'attr'
+    emit?:           string[];      // DOM events to dispatch (default ['input','change'])
+    convertFrom?:    number | string;  // source unit: 'mm'|'cm'|'in'|'pt' or mm-per-unit
+    convertTo?:      number | string;  // host unit:   'mm'|'cm'|'in'|'pt' or mm-per-unit
+    decimals?:       number | null;    // rounding precision (null = none)
+    round?:          'round' | 'floor' | 'ceil';
+    enabled?:        boolean;
+}
+```
+
+**Target resolution order:** `customSelector` (if set) → the built-in preset
+selectors for the chosen `control` → first match wins. The preset selectors
+cover common Shopify / WooCommerce / PrestaShop / Magento patterns
+(`input[name="quantity"]`, `.qty`, `#width`, …). When a merchant's theme uses
+different markup, they add a `customSelector` in the admin — **the plugin does
+not need to know the theme's selectors**.
+
+**Units:** dimensional sources are millimetres at the source. `convertTo`
+accepts a named unit (`mm`/`cm`/`in`/`pt`) or a raw mm-per-unit number (e.g.
+`25.4` for inches). For `area` the conversion factor is squared automatically
+(mm² → cm² divides by 100). Counts ignore conversion.
+
+> **Plugin authors:** you usually don't construct bindings by hand — the
+> merchant's connector arrives as JSON from your backend (which fetched it
+> from Filecheck) and you pass it straight through as the `connector` option.
+> The shape above is documented so you can validate/serialize it safely.
+
+---
+
+## 7. Loading async
 
 `window.Filecheck` is not available immediately. Poll:
 
@@ -203,14 +329,14 @@ waitForFilecheck((Filecheck) => {
 
 ---
 
-## 7. Sizing
+## 8. Sizing
 
 The widget self-sizes. Give the mount `<div>` a **width** only — never set a
 fixed height. The iframe is wrapped in Shadow DOM so host CSS does not affect it.
 
 ---
 
-## 8. Multiple elements on one page
+## 9. Multiple elements on one page
 
 Track `canProceed` per element separately:
 
@@ -228,7 +354,7 @@ function addIntake(workflowId, slotId) {
 
 ---
 
-## 9. Server-side: persisting the `jobId`
+## 10. Server-side: persisting the `jobId`
 
 1. Write `jobId` into a hidden form field / cart attribute when `canProceed` is `true`.
 2. Attach it to the order (line item meta, order note, etc.).
@@ -246,10 +372,12 @@ admin to push results without polling.
 
 ---
 
-## 10. WordPress / WooCommerce recipe
+## 11. WordPress / WooCommerce recipe
 
 Settings page fields: publishable key, secret key, agentId, default
 workflowId, per-product override, presentation, "block checkout if not ready".
+Optionally a **connector** per product (stored as the connector's JSON, fetched
+from your backend / the Filecheck API) to drive quantity / size inputs.
 
 ```php
 // Render mount slot + script on product page
@@ -261,14 +389,21 @@ add_action('woocommerce_before_add_to_cart_button', function () {
     $pk    = esc_js(get_option('fc_publishable_key'));
     $agent = esc_js(get_option('fc_agent_id'));
     $pid   = esc_attr($product->get_id());
+    // Connector JSON for this product (or '' if none). Store the raw JSON the
+    // plugin fetched from Filecheck; pass it straight through, do not rebuild it.
+    $connector_json = get_post_meta($product->get_id(), '_fc_connector', true) ?: '';
     echo "<div id='fc-slot-{$pid}'></div>";
     echo "<input type='hidden' name='fc_job_id' id='fc-job-id-{$pid}' value=''>";
     $pk_attr = esc_attr(get_option('fc_publishable_key'));
     wp_enqueue_script('filecheck', "https://cdn.filecheck.io/element/{$pk_attr}/filecheck.js", [], null, true);
+    $connector_js = $connector_json ? "JSON.parse('" . esc_js($connector_json) . "')" : 'null';
     wp_add_inline_script('filecheck', "
         waitForFilecheck(function(Filecheck) {
             var fc = Filecheck('{$pk}', { agentId: '{$agent}' });
-            var el = fc.elements.create('intake', { workflowId: '{$wf}', presentation: 'inline' });
+            var opts = { workflowId: '{$wf}', presentation: 'inline' };
+            var connector = {$connector_js};
+            if (connector) opts.connector = connector;
+            var el = fc.elements.create('intake', opts);
             el.on('status', function(e) {
                 document.querySelector('.single_add_to_cart_button').disabled = !e.canProceed;
                 document.getElementById('fc-job-id-{$pid}').value = e.jobId || '';
@@ -301,7 +436,7 @@ add_action('woocommerce_checkout_create_order_line_item', function ($item, $key,
 
 ---
 
-## 11. Shopify recipe
+## 12. Shopify recipe
 
 1. **Theme app extension block** — drops `<div id="fc-slot">` + script tag onto
    the product page. Block settings: workflowId, presentation. Per-product via
@@ -312,11 +447,14 @@ add_action('woocommerce_checkout_create_order_line_item', function ($item, $key,
    call `GET /jobs/{id}` with the secret key, attach output file via Files API.
 4. **Embedded admin** (Polaris + App Bridge) — key entry, workflow picker,
    default presentation, metafield writer.
-5. **Billing** — usage-based via Shopify Billing API (per-check).
+5. **Connector (optional)** — store the connector JSON in a metafield
+   (`filecheck.connector`) and pass it as the `connector` option to drive
+   quantity / size inputs from file facts (§6).
+6. **Billing** — usage-based via Shopify Billing API (per-check).
 
 ---
 
-## 12. OpenCart / PrestaShop recipe
+## 13. OpenCart / PrestaShop recipe
 
 Same pattern as WordPress:
 
@@ -325,13 +463,15 @@ Same pattern as WordPress:
 - Product page: render `<div>` mount target + inline `<script>` calling
   `waitForFilecheck` → `Filecheck(pk)` → `elements.create('intake', { workflowId })`
   → `mount` → gate submit on `canProceed`.
+- Connector (optional): store the connector JSON per product and pass it as the
+  `connector` option so quantity / size inputs auto-fill from file facts (§6).
 - Add-to-cart / checkout: validate that `jobId` was submitted; persist as order
   attribute.
 - Post-purchase: use the secret key server-side to fetch output and attach to order.
 
 ---
 
-## 13. Common mistakes
+## 14. Common mistakes
 
 | Mistake | Correct approach |
 | --- | --- |
@@ -340,7 +480,9 @@ Same pattern as WordPress:
 | Secret key `sk_…` in browser JS | Server-side only |
 | Fixed `height` on the mount div | Set `width` only; widget self-sizes |
 | Using `v1/filecheck.js` in a plugin | Use `/{pk}/filecheck.js` — embeds tenant config, one fewer request |
-| Calling `Filecheck()` before async script loads | Use the polling helper (§6) |
-| Two elements, assuming one controls both | Track `canProceed` per element (§8) |
+| Calling `Filecheck()` before async script loads | Use the polling helper (§7) |
+| Two elements, assuming one controls both | Track `canProceed` per element (§9) |
 | Ignoring `proof` event when `approvalRequired: true` | Call `respondToProof()` or workflow stalls |
+| Hand-building connector bindings in the plugin | Pass the merchant's connector JSON straight through as the `connector` option (§6) |
+| Expecting the connector to know your theme's selectors | Merchant adds a `customSelector` in admin; plugin stays theme-agnostic |
 ```

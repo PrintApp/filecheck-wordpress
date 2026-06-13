@@ -13,6 +13,16 @@ class Filecheck_Fulfillment {
     }
     
     public function __construct() {
+        // Sync order details to Filecheck immediately after order is created.
+        // Three hooks cover all checkout paths:
+        // - woocommerce_checkout_order_created      : WC 8.2+ classic checkout (passes $order)
+        // - woocommerce_checkout_order_processed    : WC 4–8.1 classic checkout (passes $order_id, $posted, $order)
+        // - woocommerce_store_api_checkout_order_processed : WC Blocks / Store API checkout (passes $order)
+        add_action( 'woocommerce_checkout_order_created',              array( $this, 'sync_order_to_filecheck' ),       10, 1 );
+        add_action( 'woocommerce_checkout_order_processed',            array( $this, 'sync_order_to_filecheck_by_id' ), 10, 3 );
+        add_action( 'woocommerce_store_api_checkout_order_processed',  array( $this, 'sync_order_to_filecheck' ),       10, 1 );
+        add_action( 'woocommerce_order_status_changed',                array( $this, 'sync_order_status_change' ),      10, 4 );
+
         // Trigger file download when order goes to processing or completed
         add_action( 'woocommerce_order_status_processing', array( $this, 'process_order_files' ), 10, 1 );
         add_action( 'woocommerce_order_status_completed', array( $this, 'process_order_files' ), 10, 1 );
@@ -20,11 +30,248 @@ class Filecheck_Fulfillment {
         // Add meta box to admin order view (legacy CPT and HPOS screens)
         add_action( 'add_meta_boxes_shop_order', array( $this, 'add_order_metabox' ) );
         add_action( 'add_meta_boxes_woocommerce_page_wc-orders', array( $this, 'add_order_metabox' ) );
-        
+
+        // Enqueue admin order-screen assets + AJAX endpoints for the live job panel
+        add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_order_admin_assets' ) );
+        add_action( 'wp_ajax_filecheck_get_job_details', array( $this, 'ajax_get_job_details' ) );
+
         // Handle secure file download request for admin
         add_action( 'admin_init', array( $this, 'handle_secure_download' ) );
     }
-    
+
+    /**
+     * Enqueue the live job-details script on the order edit screen (CPT + HPOS).
+     */
+    public function enqueue_order_admin_assets( $hook ) {
+        $is_order_screen = false;
+        if ( in_array( $hook, array( 'post.php', 'post-new.php' ), true ) ) {
+            global $post;
+            if ( $post && 'shop_order' === $post->post_type ) {
+                $is_order_screen = true;
+            }
+        }
+        if ( false !== strpos( $hook, 'wc-orders' ) ) {
+            $is_order_screen = true;
+        }
+        if ( ! $is_order_screen ) {
+            return;
+        }
+
+        wp_enqueue_script(
+            'filecheck-order-admin',
+            FILECHECK_PLUGIN_URL . 'assets/js/order-admin.js',
+            array(),
+            FILECHECK_VERSION,
+            true
+        );
+        wp_localize_script( 'filecheck-order-admin', 'filecheck_order_admin', array(
+            'ajax_url' => admin_url( 'admin-ajax.php' ),
+            'nonce'    => wp_create_nonce( 'filecheck_order_admin' ),
+            'i18n'     => array(
+                'loading'  => __( 'Loading file details…', 'filecheck-woocommerce' ),
+                'error'    => __( 'Could not load file details.', 'filecheck-woocommerce' ),
+                'download' => __( 'Download', 'filecheck-woocommerce' ),
+                'view'     => __( 'View Job on Filecheck', 'filecheck-woocommerce' ),
+                'noFiles'  => __( 'No processed files yet.', 'filecheck-woocommerce' ),
+            ),
+        ) );
+    }
+
+    /**
+     * AJAX: return normalized Filecheck job details for every line item in an order.
+     */
+    public function ajax_get_job_details() {
+        check_ajax_referer( 'filecheck_order_admin', 'nonce' );
+
+        if ( ! current_user_can( 'manage_woocommerce' ) ) {
+            wp_send_json_error( array( 'message' => __( 'Unauthorized.', 'filecheck-woocommerce' ) ) );
+        }
+
+        $order_id = isset( $_POST['order_id'] ) ? intval( $_POST['order_id'] ) : 0;
+        $order    = $order_id ? wc_get_order( $order_id ) : false;
+        if ( ! $order ) {
+            wp_send_json_error( array( 'message' => __( 'Order not found.', 'filecheck-woocommerce' ) ) );
+        }
+
+        $secret_key = get_option( 'filecheck_secret_key' );
+        if ( empty( $secret_key ) ) {
+            wp_send_json_error( array( 'message' => __( 'Secret key not configured.', 'filecheck-woocommerce' ) ) );
+        }
+
+        $items = array();
+        foreach ( $order->get_items() as $item_id => $item ) {
+            $job_id = $item->get_meta( '_filecheck_job_id' );
+            if ( empty( $job_id ) ) {
+                continue;
+            }
+
+            $summary = Filecheck_API_Client::instance()->get_job_summary( $job_id, $secret_key );
+
+            $entry = array(
+                'itemId'   => $item_id,
+                'itemName' => $item->get_name(),
+                'jobId'    => $job_id,
+                'adminUrl' => 'https://admin.filecheck.io/orders/' . rawurlencode( $order_id ) . '/' . rawurlencode( $job_id ),
+            );
+
+            if ( is_wp_error( $summary ) ) {
+                $entry['error'] = $summary->get_error_message();
+            } else {
+                $entry['status'] = $summary['status'];
+                $entry['files']  = $summary['files'];
+            }
+
+            $items[] = $entry;
+        }
+
+        wp_send_json_success( array( 'items' => $items ) );
+    }
+
+    /**
+     * Callback for woocommerce_checkout_order_processed (WC < 8.2 fallback).
+     * Signature: $order_id, $posted_data, $order
+     */
+    public function sync_order_to_filecheck_by_id( $order_id, $posted_data, $order ) {
+        $this->sync_order_to_filecheck( $order );
+    }
+
+    /**
+     * Sync order details to Filecheck API when an order is first placed.
+     * Only runs if at least one line item has a Filecheck job attached.
+     */
+    public function sync_order_to_filecheck( $order ) {
+        if ( ! $order instanceof WC_Abstract_Order ) {
+            $order = wc_get_order( $order );
+        }
+        if ( ! $order ) {
+            return;
+        }
+
+        // Guard against double-execution (both hooks may fire in WC 8.2+)
+        if ( $order->get_meta( '_filecheck_order_synced' ) === 'yes' ) {
+            return;
+        }
+
+        $result = $this->push_order_to_filecheck( $order, $order->get_status() );
+
+        if ( is_wp_error( $result ) ) {
+            $order->add_order_note(
+                sprintf( __( 'Filecheck: Failed to sync order — %s', 'filecheck-woocommerce' ), $result->get_error_message() )
+            );
+        } else {
+            $order->update_meta_data( '_filecheck_order_synced', 'yes' );
+            $order->save();
+        }
+    }
+
+    /**
+     * Re-sync order to Filecheck whenever the order status changes.
+     * Signature: $order_id, $old_status, $new_status, $order
+     */
+    public function sync_order_status_change( $order_id, $old_status, $new_status, $order ) {
+        if ( ! $order instanceof WC_Abstract_Order ) {
+            $order = wc_get_order( $order_id );
+        }
+        if ( ! $order ) {
+            return;
+        }
+
+        $result = $this->push_order_to_filecheck( $order, $new_status );
+
+        if ( is_wp_error( $result ) ) {
+            $order->add_order_note(
+                sprintf( __( 'Filecheck: Failed to sync status change — %s', 'filecheck-woocommerce' ), $result->get_error_message() )
+            );
+        }
+    }
+
+    /**
+     * Build the payload and POST it to Filecheck.
+     * Returns true on success, WP_Error on failure, or null if the order has no Filecheck jobs.
+     */
+    private function push_order_to_filecheck( $order, $status ) {
+        $secret_key = get_option( 'filecheck_secret_key' );
+        if ( empty( $secret_key ) ) {
+            return null;
+        }
+
+        // Build line items — only include items that have a Filecheck job
+        $line_items = array();
+        foreach ( $order->get_items() as $item_id => $item ) {
+            $job_id = $item->get_meta( '_filecheck_job_id' );
+            if ( empty( $job_id ) ) {
+                continue;
+            }
+
+            $product    = $item->get_product();
+            $product_id = $item->get_product_id();
+
+            $item_data = array(
+                'itemId'    => (string) $item_id,
+                'productId' => (string) $product_id,
+                'name'      => $item->get_name(),
+                'quantity'  => $item->get_quantity(),
+                'sku'       => $product ? $product->get_sku() : '',
+                'total'     => $order->get_line_total( $item, true ),
+                'jobId'     => $job_id,
+            );
+
+            // Include any public item meta (exclude internal WC/Filecheck keys)
+            $excluded_keys = array( '_filecheck_job_id', '_filecheck_downloaded_files', '_reduced_stock', '_qty' );
+            foreach ( $item->get_meta_data() as $meta ) {
+                $meta_data = $meta->get_data();
+                if ( ! in_array( $meta_data['key'], $excluded_keys, true ) && strpos( $meta_data['key'], '_' ) !== 0 ) {
+                    $item_data['meta'][ $meta_data['key'] ] = $meta_data['value'];
+                }
+            }
+
+            $line_items[] = $item_data;
+        }
+
+        // Nothing to sync if no Filecheck jobs on this order
+        if ( empty( $line_items ) ) {
+            return null;
+        }
+
+        // Customer details
+        $customer = array(
+            'id'    => $order->get_customer_id() ? (string) $order->get_customer_id() : null,
+            'name'  => trim( $order->get_billing_first_name() . ' ' . $order->get_billing_last_name() ),
+            'email' => $order->get_billing_email(),
+            'phone' => $order->get_billing_phone(),
+        );
+
+        // Shipping address
+        $shipping = array();
+        if ( $order->get_shipping_address_1() ) {
+            $shipping = array(
+                'name'      => trim( $order->get_shipping_first_name() . ' ' . $order->get_shipping_last_name() ),
+                'address1'  => $order->get_shipping_address_1(),
+                'address2'  => $order->get_shipping_address_2(),
+                'city'      => $order->get_shipping_city(),
+                'state'     => $order->get_shipping_state(),
+                'postcode'  => $order->get_shipping_postcode(),
+                'country'   => $order->get_shipping_country(),
+                'company'   => $order->get_shipping_company(),
+            );
+        }
+
+        $payload = array(
+            'orderId'  => (string) $order->get_id(),
+            'status'   => $status,
+            'currency' => $order->get_currency(),
+            'total'    => $order->get_total(),
+            'customer' => $customer,
+            'items'    => $line_items,
+        );
+
+        if ( ! empty( $shipping ) ) {
+            $payload['shippingAddress'] = $shipping;
+        }
+
+        return Filecheck_API_Client::instance()->sync_order( $order->get_id(), $payload, $secret_key );
+    }
+
     /**
      * Process all items in an order, fetch Filecheck jobs, and download output files.
      */
@@ -169,65 +416,44 @@ class Filecheck_Fulfillment {
      * Add the Filecheck meta box to the admin order edit screen.
      */
     public function add_order_metabox() {
+        // Use the HPOS order screen id when available, otherwise the legacy CPT screen.
+        $screen = function_exists( 'wc_get_page_screen_id' ) ? wc_get_page_screen_id( 'shop-order' ) : 'shop_order';
+
         add_meta_box(
             'filecheck_order_uploads',
             __( 'Filecheck Uploads', 'filecheck-woocommerce' ),
             array( $this, 'render_order_metabox' ),
-            'shop_order',
+            $screen,
             'side',
             'default'
         );
     }
     
     /**
-     * Render order edit metabox.
+     * Render order edit metabox — a live panel filled by order-admin.js via AJAX.
      */
     public function render_order_metabox( $post_or_order ) {
         $order = ( $post_or_order instanceof WP_Post ) ? wc_get_order( $post_or_order->ID ) : $post_or_order;
         if ( ! $order || ! is_a( $order, 'WC_Order' ) ) {
             return;
         }
-        
+
         $has_filecheck = false;
-        
-        foreach ( $order->get_items() as $item_id => $item ) {
-            $job_id = $item->get_meta( '_filecheck_job_id' );
-            if ( empty( $job_id ) ) {
-                continue;
+        foreach ( $order->get_items() as $item ) {
+            if ( ! empty( $item->get_meta( '_filecheck_job_id' ) ) ) {
+                $has_filecheck = true;
+                break;
             }
-            
-            $has_filecheck = true;
-            $downloaded_files = $item->get_meta( '_filecheck_downloaded_files' );
-            
-            echo '<div style="margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid #eee;">';
-            echo '<strong>' . esc_html( $item->get_name() ) . '</strong><br>';
-            echo '<span style="font-size: 11px; color: #666;">Job ID: ' . esc_html( $job_id ) . '</span><br>';
-            
-            // Link to Filecheck Admin Dashboard report
-            $admin_url = 'https://admin.filecheck.io/jobs/' . urlencode( $job_id );
-            echo '<a href="' . esc_url( $admin_url ) . '" target="_blank" class="button button-small" style="margin-top: 5px; margin-bottom: 5px;">' . __( 'View Report in Filecheck', 'filecheck-woocommerce' ) . '</a><br>';
-            
-            if ( ! empty( $downloaded_files ) && is_array( $downloaded_files ) ) {
-                echo '<ul style="margin: 5px 0 0 15px; list-style-type: disc;">';
-                foreach ( $downloaded_files as $index => $file ) {
-                    $download_url = wp_nonce_url(
-                        admin_url( 'index.php?action=filecheck_download&order_id=' . $order->get_id() . '&item_id=' . $item_id . '&file_index=' . $index ),
-                        'filecheck_download_file'
-                    );
-                    echo '<li>';
-                    echo '<a href="' . esc_url( $download_url ) . '">' . esc_html( $file['filename'] ) . '</a>';
-                    echo '</li>';
-                }
-                echo '</ul>';
-            } else {
-                echo '<span style="font-size: 11px; color: #d63638;">' . __( 'No output files downloaded yet. Processing order will fetch files.', 'filecheck-woocommerce' ) . '</span>';
-            }
-            echo '</div>';
         }
-        
+
         if ( ! $has_filecheck ) {
-            echo '<p>' . __( 'No Filecheck items in this order.', 'filecheck-woocommerce' ) . '</p>';
+            echo '<p>' . esc_html__( 'No Filecheck items in this order.', 'filecheck-woocommerce' ) . '</p>';
+            return;
         }
+
+        echo '<div id="filecheck-job-panel" data-order-id="' . esc_attr( $order->get_id() ) . '">';
+        echo '<p class="filecheck-loading">' . esc_html__( 'Loading file details…', 'filecheck-woocommerce' ) . '</p>';
+        echo '</div>';
     }
     
     /**

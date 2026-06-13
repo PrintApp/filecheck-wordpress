@@ -38,8 +38,9 @@ class Filecheck_Product {
         if ( empty( $workflow_id ) ) {
             $workflow_id = 'none';
         }
+        $connector_id = get_post_meta( $product_id, '_filecheck_connector_id', true );
         $presentation = get_post_meta( $product_id, '_filecheck_presentation', true );
-        
+
         // Fetch active workflows from Filecheck API
         $workflows = Filecheck_API_Client::instance()->get_workflows();
         $workflow_options = array(
@@ -51,6 +52,20 @@ class Filecheck_Product {
             foreach ( $workflows as $workflow ) {
                 if ( isset( $workflow['id'] ) && isset( $workflow['title'] ) ) {
                     $workflow_options[ $workflow['id'] ] = $workflow['title'] . ' (' . $workflow['id'] . ')';
+                }
+            }
+        }
+
+        // Fetch active connectors from Filecheck API
+        $connectors = Filecheck_API_Client::instance()->get_connectors();
+        $connector_options = array(
+            '' => __( 'None', 'filecheck-woocommerce' ),
+        );
+
+        if ( is_array( $connectors ) ) {
+            foreach ( $connectors as $connector ) {
+                if ( isset( $connector['id'] ) && isset( $connector['title'] ) ) {
+                    $connector_options[ $connector['id'] ] = $connector['title'] . ' (' . $connector['id'] . ')';
                 }
             }
         }
@@ -68,6 +83,15 @@ class Filecheck_Product {
                     'value'         => $workflow_id,
                 ) );
                 
+                // Connector dropdown
+                woocommerce_wp_select( array(
+                    'id'          => '_filecheck_connector_id',
+                    'label'       => __( 'Connector', 'filecheck-woocommerce' ),
+                    'description' => __( 'Optional. Syncs Filecheck file details to elements on this product page.', 'filecheck-woocommerce' ),
+                    'options'     => $connector_options,
+                    'value'       => $connector_id,
+                ) );
+
                 // Presentation mode override dropdown
                 woocommerce_wp_select( array(
                     'id'            => '_filecheck_presentation',
@@ -88,9 +112,11 @@ class Filecheck_Product {
     
     public function save_product_settings( $product_id ) {
         $workflow_id  = isset( $_POST['_filecheck_workflow_id'] ) ? sanitize_text_field( $_POST['_filecheck_workflow_id'] ) : 'none';
+        $connector_id = isset( $_POST['_filecheck_connector_id'] ) ? sanitize_text_field( $_POST['_filecheck_connector_id'] ) : '';
         $presentation = isset( $_POST['_filecheck_presentation'] ) ? sanitize_text_field( $_POST['_filecheck_presentation'] ) : '';
-        
+
         update_post_meta( $product_id, '_filecheck_workflow_id', $workflow_id );
+        update_post_meta( $product_id, '_filecheck_connector_id', $connector_id );
         update_post_meta( $product_id, '_filecheck_presentation', $presentation );
     }
 }

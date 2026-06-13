@@ -122,11 +122,14 @@ class Filecheck_Frontend {
             true
         );
         
+        $connector_id = get_post_meta( $product_id, '_filecheck_connector_id', true );
+
         // Localize params
         wp_localize_script( 'filecheck-frontend', 'filecheck_params', array(
             'publishable_key' => $pk,
             'agent_id'        => $agent_id,
             'workflow_id'     => $workflow_id,
+            'connector_id'    => $connector_id,
             'presentation'    => $presentation,
             'block_checkout'  => ( 'yes' === $block_checkout ),
             'product_id'      => $product_id,
