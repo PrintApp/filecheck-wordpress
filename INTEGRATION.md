@@ -66,7 +66,7 @@ const intake = fc.elements.create('intake', {
     locale?:       'en-US',
     presentation?: 'inline',  // 'inline' (default) | 'dialog'
     connector?:    { … },     // map file facts → product-page controls (see §6)
-    connectorId?:  'cntr_...',// reserved: server-side connector resolution
+    connectorId?:  'cntr_...',// server-side connector resolution (see §6.3)
     onConnectorApply?: (results) => {}, // per-binding apply report (debug)
     ui?: {
         title?:       string,
@@ -110,6 +110,59 @@ intake.unmount();
 ```
 
 `on()` returns an unsubscribe function.
+
+### 3.2 `Filecheck.mount(config)` — zero-JS plugin integration
+
+For plugins (WordPress, PrestaShop, OpenCart, Shopify) where all configuration
+is known server-side, `Filecheck.mount` provides a single call that handles
+mounting, cart-button gating, proof gallery, and optional CSS/JS injection.
+It returns the `IntakeElement` so you can attach platform-specific listeners.
+
+Wait for `.mount` to be available (it is attached at the same time as the
+`Filecheck` factory):
+
+```js
+function whenReady(cb, timeout) {
+    var start = Date.now();
+    (function tick() {
+        if (window.Filecheck && window.Filecheck.mount) return cb();
+        if (Date.now() - start > (timeout || 10000)) return;
+        setTimeout(tick, 50);
+    })();
+}
+
+whenReady(function() {
+    var el = window.Filecheck.mount({
+        publishableKey: 'pk_live_...',
+        workflowId:     'wf_...',
+        presentation:   'inline',       // or 'dialog'
+        agentId:        null,           // optional
+        mountSelector:  '#fc-slot',     // fallback if #fc-inline absent
+        connectorId:    'cntr_...',     // optional — fetched server-side
+        cartButtonSelector: '.my-btn', // optional extra cart selector
+        elementTheme:   'light',        // optional
+        customCss:      '…',            // optional — injected into <head>
+        customJs:       '…',            // optional — eval'd after mount
+    });
+
+    // el is the IntakeElement — attach any platform-specific listeners here
+    if (el) {
+        el.on('status', function(e) {
+            document.getElementById('fc_job_id').value = e.jobId || '';
+        });
+    }
+});
+```
+
+**What `Filecheck.mount` handles automatically:**
+- Resolves the mount target (`#fc-inline` → `mountSelector` → last resort next to cart button)
+- Creates and positions the `<dialog>` trigger button when `presentation: 'dialog'`
+- Gates all cart buttons matching the built-in selector list + `cartButtonSelector` on `canProceed`
+- Wires the proof gallery (built-in lightbox, no host code required)
+- Injects `customCss` / `customJs`
+
+The only thing left to the plugin is platform-specific concerns such as
+writing `jobId` into a hidden form field for server-side order validation.
 
 ---
 
@@ -386,30 +439,43 @@ add_action('woocommerce_before_add_to_cart_button', function () {
     $wf = get_post_meta($product->get_id(), '_fc_workflow_id', true)
           ?: get_option('fc_default_workflow_id');
     if (!$wf) return;
-    $pk    = esc_js(get_option('fc_publishable_key'));
-    $agent = esc_js(get_option('fc_agent_id'));
-    $pid   = esc_attr($product->get_id());
-    // Connector JSON for this product (or '' if none). Store the raw JSON the
-    // plugin fetched from Filecheck; pass it straight through, do not rebuild it.
-    $connector_json = get_post_meta($product->get_id(), '_fc_connector', true) ?: '';
+    $pk           = esc_js(get_option('fc_publishable_key'));
+    $pk_attr      = esc_attr(get_option('fc_publishable_key'));
+    $agent        = esc_js(get_option('fc_agent_id'));
+    $presentation = esc_js(get_option('fc_presentation', 'inline'));
+    $pid          = (int) $product->get_id();
+    $connector_id = esc_js(get_post_meta($pid, '_fc_connector_id', true) ?: '');
+
     echo "<div id='fc-slot-{$pid}'></div>";
     echo "<input type='hidden' name='fc_job_id' id='fc-job-id-{$pid}' value=''>";
-    $pk_attr = esc_attr(get_option('fc_publishable_key'));
+
     wp_enqueue_script('filecheck', "https://cdn.filecheck.io/element/{$pk_attr}/filecheck.js", [], null, true);
-    $connector_js = $connector_json ? "JSON.parse('" . esc_js($connector_json) . "')" : 'null';
+
+    // Use Filecheck.mount — handles cart gating, dialog, and proof gallery
+    // automatically. Only the jobId hidden-input write is WooCommerce-specific.
     wp_add_inline_script('filecheck', "
-        waitForFilecheck(function(Filecheck) {
-            var fc = Filecheck('{$pk}', { agentId: '{$agent}' });
-            var opts = { workflowId: '{$wf}', presentation: 'inline' };
-            var connector = {$connector_js};
-            if (connector) opts.connector = connector;
-            var el = fc.elements.create('intake', opts);
-            el.on('status', function(e) {
-                document.querySelector('.single_add_to_cart_button').disabled = !e.canProceed;
-                document.getElementById('fc-job-id-{$pid}').value = e.jobId || '';
-            });
-            el.mount('#fc-slot-{$pid}');
-        });
+        (function() {
+            var started = Date.now();
+            (function tick() {
+                if (window.Filecheck && window.Filecheck.mount) {
+                    var el = window.Filecheck.mount({
+                        publishableKey: '{$pk}',
+                        workflowId:     '{$wf}',
+                        presentation:   '{$presentation}',
+                        agentId:        '{$agent}' || null,
+                        mountSelector:  '#fc-slot-{$pid}',
+                        connectorId:    '{$connector_id}' || undefined,
+                    });
+                    if (el) {
+                        el.on('status', function(e) {
+                            document.getElementById('fc-job-id-{$pid}').value = e.jobId || '';
+                        });
+                    }
+                    return;
+                }
+                if (Date.now() - started < 10000) setTimeout(tick, 50);
+            })();
+        })();
     ");
 });
 
@@ -456,18 +522,45 @@ add_action('woocommerce_checkout_create_order_line_item', function ($item, $key,
 
 ## 13. OpenCart / PrestaShop recipe
 
-Same pattern as WordPress:
+Same pattern as WordPress. All three platforms share identical front-end output:
 
-- Module admin: publishable key, secret key, agentId, default workflowId,
-  per-product override.
-- Product page: render `<div>` mount target + inline `<script>` calling
-  `waitForFilecheck` → `Filecheck(pk)` → `elements.create('intake', { workflowId })`
-  → `mount` → gate submit on `canProceed`.
-- Connector (optional): store the connector JSON per product and pass it as the
-  `connector` option so quantity / size inputs auto-fill from file facts (§6).
-- Add-to-cart / checkout: validate that `jobId` was submitted; persist as order
-  attribute.
-- Post-purchase: use the secret key server-side to fetch output and attach to order.
+```html
+<div id="fc-inline"></div>
+<input type="hidden" name="fc_job_id" id="fc-job-id" value="">
+<script src="https://cdn.filecheck.io/element/{pk}/filecheck.js" async></script>
+<script>
+(function() {
+    var started = Date.now();
+    (function tick() {
+        if (window.Filecheck && window.Filecheck.mount) {
+            var el = window.Filecheck.mount({
+                publishableKey: '{pk}',
+                workflowId:     '{workflowId}',
+                presentation:   '{presentation}',
+                agentId:        '{agentId}' || null,
+                connectorId:    '{connectorId}' || undefined,
+            });
+            if (el) {
+                el.on('status', function(e) {
+                    document.getElementById('fc-job-id').value = e.jobId || '';
+                });
+            }
+            return;
+        }
+        if (Date.now() - started < 10000) setTimeout(tick, 50);
+    })();
+})();
+</script>
+```
+
+`Filecheck.mount` handles mounting into `#fc-inline`, cart-button gating,
+dialog creation, and the proof gallery. The only platform-specific code is
+the `status` → hidden `fc_job_id` write for server-side order validation.
+
+Per-platform differences are limited to:
+- **Module admin**: store publishable key, secret key, agentId, default workflowId, presentation, per-product workflowId / connectorId overrides.
+- **Add-to-cart / checkout**: validate `jobId` was submitted; persist as order attribute.
+- **Post-purchase**: use the secret key server-side to fetch output and attach to the order.
 
 ---
 
@@ -483,6 +576,8 @@ Same pattern as WordPress:
 | Calling `Filecheck()` before async script loads | Use the polling helper (§7) |
 | Two elements, assuming one controls both | Track `canProceed` per element (§9) |
 | Ignoring `proof` event when `approvalRequired: true` | Call `respondToProof()` or workflow stalls |
-| Hand-building connector bindings in the plugin | Pass the merchant's connector JSON straight through as the `connector` option (§6) |
+| Hand-building connector bindings in the plugin | Pass `connectorId` (§3.2) or the connector JSON as the `connector` option (§6) |
 | Expecting the connector to know your theme's selectors | Merchant adds a `customSelector` in admin; plugin stays theme-agnostic |
+| Calling `fc.elements.create` + `el.mount` in a plugin | Use `Filecheck.mount(config)` (§3.2) — gets cart gating, dialog, and proof gallery for free |
+| Polling for `window.Filecheck` without checking `.mount` | Check `window.Filecheck && window.Filecheck.mount` — both are attached simultaneously |
 ```

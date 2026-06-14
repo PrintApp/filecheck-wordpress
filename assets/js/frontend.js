@@ -1,131 +1,110 @@
 (function() {
     'use strict';
-    
-    if (typeof filecheck_params === 'undefined') {
-        return;
-    }
-    
+
+    if (typeof filecheck_params === 'undefined') return;
+
     // Short-polling helper to wait for the async CDN library to attach window.Filecheck
     function whenReady() {
         return new Promise(function(resolve, reject) {
             var started = Date.now();
-            var tick = function() {
-                if (typeof window.Filecheck === 'function') {
-                    return resolve(window.Filecheck);
-                }
-                if (Date.now() - started > 10000) {
-                    return reject(new Error('Filecheck failed to load after 10s'));
-                }
+            (function tick() {
+                if (window.Filecheck && window.Filecheck.mount) return resolve();
+                if (Date.now() - started > 10000) return reject(new Error('Filecheck failed to load after 10s'));
                 setTimeout(tick, 50);
-            };
-            tick();
+            })();
         });
     }
-    
-    function init() {
-        var productId    = filecheck_params.product_id;
-        var slotSelector = '#fc-slot-' + productId;
-        var slot         = document.querySelector(slotSelector);
-        
-        if (!slot) {
-            return;
+
+    var STORAGE_KEY_PREFIX = 'fc_job_';
+
+    function getStoredJobId(productId) {
+        try {
+            return localStorage.getItem(STORAGE_KEY_PREFIX + productId) || null;
+        } catch (e) {
+            return null;
         }
-        
-        var workflowId    = filecheck_params.workflow_id;
-        var connectorId   = filecheck_params.connector_id;
-        var presentation  = filecheck_params.presentation;
-        var agentId       = filecheck_params.agent_id;
-        var blockCheckout = filecheck_params.block_checkout;
-        
-        var form   = slot.closest('form.cart');
-        if (!form) {
-            return;
-        }
-        
-        var button = form.querySelector('.single_add_to_cart_button');
-        
-        // If gating is enabled, disable add-to-cart by default on page load
-        if (blockCheckout && button) {
-            button.disabled = true;
-            button.classList.add('fc-blocked');
-        }
-        
-        whenReady().then(function(Filecheck) {
-            var fcOpts = {};
-            if (agentId) {
-                fcOpts.agentId = agentId;
+    }
+
+    function storeJobId(productId, jobId) {
+        try {
+            if (jobId) {
+                localStorage.setItem(STORAGE_KEY_PREFIX + productId, jobId);
+            } else {
+                localStorage.removeItem(STORAGE_KEY_PREFIX + productId);
             }
-            
-            var fc = Filecheck(filecheck_params.publishable_key, fcOpts);
-            var el;
-            
-            if (presentation === 'dialog') {
-                // Render trigger button; the element's own dialog UI handles the overlay
-                var triggerBtn = document.createElement('button');
-                triggerBtn.type = 'button';
-                triggerBtn.className = 'button alt fc-trigger-btn';
-                triggerBtn.textContent = 'Upload & Verify Files';
-                
-                if (button) {
-                    button.parentNode.insertBefore(triggerBtn, button);
-                } else {
-                    form.appendChild(triggerBtn);
-                }
-                
-                triggerBtn.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    if (el) {
-                        el.focus();
+        } catch (e) { /* storage unavailable */ }
+    }
+
+    function saveJobIdToSession(productId, jobId) {
+        var body = new URLSearchParams({
+            action:     'filecheck_save_job',
+            nonce:      filecheck_params.nonce,
+            product_id: productId,
+            job_id:     jobId || '',
+        });
+        fetch(filecheck_params.ajax_url, {
+            method:      'POST',
+            credentials: 'same-origin',
+            body:        body,
+        }).catch(function(err) {
+            console.warn('[Filecheck WooCommerce] Session save failed:', err);
+        });
+    }
+
+    function init() {
+        var p            = filecheck_params;
+        var slotSelector = '#fc-slot-' + p.product_id;
+        var slot         = document.querySelector(slotSelector);
+
+        if (!slot) return;
+
+        var form = slot.closest('form.cart');
+
+        whenReady().then(function() {
+            var config = {
+                ...(window?.FILECHECK_CONFIG || {}),
+                publishableKey:     p.publishable_key,
+                workflowId:         p.workflow_id,
+                mountSelector:      slotSelector,
+                agentId:            p.agent_id || null,
+            };
+            if (p.connector_id) config.connectorId = p.connector_id;
+
+            // Resume a previous job if the customer refreshes the page
+            var resumeJobId = getStoredJobId(p.product_id);
+            if (resumeJobId) config.jobId = resumeJobId;
+
+            var el = window.Filecheck.mount(config);
+
+            if (el) {
+                el.on('status', function(e) {
+                    // Persist jobId locally so a page refresh can resume
+                    storeJobId(p.product_id, e.jobId || null);
+
+                    // Persist to WC session so AJAX cart plugins can read it server-side
+                    saveJobIdToSession(p.product_id, e.jobId || null);
+
+                    // Keep hidden input in sync for server-side cart validation
+                    if (form) {
+                        var jobInput = form.querySelector('input[name="filecheck_job_id"]');
+                        if (jobInput) jobInput.value = e.jobId || '';
                     }
                 });
-                
-                // Create intake element in dialog mode — the element manages its own dialog UI
-                var dialogOpts = { workflowId: workflowId, presentation: 'dialog' };
-                if (connectorId) { dialogOpts.connectorId = connectorId; }
-                el = fc.elements.create('intake', dialogOpts);
-            } else {
-                // Inline mode
-                var inlineOpts = { workflowId: workflowId, presentation: 'inline' };
-                if (connectorId) { inlineOpts.connectorId = connectorId; }
-                el = fc.elements.create('intake', inlineOpts);
             }
-            
-            // Mount the element
-            el.mount(slotSelector);
-            
-            // Handle events
-            el.on('status', function(e) {
-                // Save Job ID & canProceed
-                var jobInput = form.querySelector('input[name="filecheck_job_id"]');
-                var proceedInput = form.querySelector('input[name="filecheck_can_proceed"]');
-                
-                if (jobInput) {
-                    jobInput.value = e.jobId || '';
-                }
-                if (proceedInput) {
-                    proceedInput.value = e.canProceed ? '1' : '0';
-                }
-                
-                // Update Add to Cart button based on the rule output canProceed flag
-                if (button && blockCheckout) {
-                    button.disabled = !e.canProceed;
-                    if (e.canProceed) {
-                        button.classList.remove('fc-blocked');
-                    } else {
-                        button.classList.add('fc-blocked');
-                    }
-                }
-            });
-            
-            el.on('error', function(err) {
-                console.error('[Filecheck WooCommerce] Widget error:', err);
-            });
-            
+
+            // Clear stored jobId once the customer successfully adds to cart,
+            // so the next visit starts fresh
+            if (form) {
+                form.addEventListener('submit', function() {
+                    storeJobId(p.product_id, null);
+                }, { once: true });
+            }
+
         }).catch(function(err) {
             console.error('[Filecheck WooCommerce] Initialization error:', err);
         });
     }
-    
+
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', init);
     } else {

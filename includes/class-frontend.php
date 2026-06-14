@@ -47,21 +47,13 @@ class Filecheck_Frontend {
             return;
         }
         
-        // Determine Presentation
-        $presentation = get_post_meta( $product_id, '_filecheck_presentation', true );
-        if ( empty( $presentation ) ) {
-            $presentation = get_option( 'filecheck_presentation', 'inline' );
-        }
-        
         ?>
         <div id="fc-slot-<?php echo esc_attr( $product_id ); ?>" 
              class="fc-slot-wrapper" 
              data-product-id="<?php echo esc_attr( $product_id ); ?>"
-             data-workflow-id="<?php echo esc_attr( $workflow_id ); ?>"
-             data-presentation="<?php echo esc_attr( $presentation ); ?>"></div>
+             data-workflow-id="<?php echo esc_attr( $workflow_id ); ?>"></div>
              
         <input type="hidden" name="filecheck_job_id" id="fc-jobid" value="">
-        <input type="hidden" name="filecheck_can_proceed" id="fc-can-proceed" value="0">
         <?php
     }
     
@@ -96,13 +88,7 @@ class Filecheck_Frontend {
             $workflow_id = get_option( 'filecheck_default_workflow_id' );
         }
         
-        $presentation = get_post_meta( $product_id, '_filecheck_presentation', true );
-        if ( empty( $presentation ) ) {
-            $presentation = get_option( 'filecheck_presentation', 'inline' );
-        }
-        
         $agent_id = get_option( 'filecheck_agent_id' );
-        $block_checkout = get_option( 'filecheck_block_checkout', 'yes' );
         
         // Enqueue Filecheck CDN Element script (pk-specific URL embeds tenant config)
         wp_enqueue_script(
@@ -130,9 +116,9 @@ class Filecheck_Frontend {
             'agent_id'        => $agent_id,
             'workflow_id'     => $workflow_id,
             'connector_id'    => $connector_id,
-            'presentation'    => $presentation,
-            'block_checkout'  => ( 'yes' === $block_checkout ),
             'product_id'      => $product_id,
+            'ajax_url'        => admin_url( 'admin-ajax.php' ),
+            'nonce'           => wp_create_nonce( 'filecheck_save_job' ),
         ) );
         
         // Enqueue our styles

@@ -50,8 +50,6 @@ class Filecheck_Settings {
             update_option( 'filecheck_agent_id', sanitize_text_field( $_POST['filecheck_agent_id'] ) );
             update_option( 'filecheck_api_url', esc_url_raw( $_POST['filecheck_api_url'] ) );
             update_option( 'filecheck_default_workflow_id', sanitize_text_field( $_POST['filecheck_default_workflow_id'] ) );
-            update_option( 'filecheck_presentation', sanitize_text_field( $_POST['filecheck_presentation'] ) );
-            update_option( 'filecheck_block_checkout', isset( $_POST['filecheck_block_checkout'] ) ? 'yes' : 'no' );
             
             $message = __( 'Settings saved successfully.', 'filecheck-woocommerce' );
         }
@@ -62,8 +60,6 @@ class Filecheck_Settings {
         $agent_id        = get_option( 'filecheck_agent_id' );
         $api_url         = get_option( 'filecheck_api_url', 'https://api.filecheck.io' );
         $default_workflow_id = get_option( 'filecheck_default_workflow_id' );
-        $presentation    = get_option( 'filecheck_presentation', 'inline' );
-        $block_checkout   = get_option( 'filecheck_block_checkout', 'yes' );
         
         // Fetch active workflows
         $workflows = Filecheck_API_Client::instance()->get_workflows( $secret_key );
@@ -140,23 +136,6 @@ class Filecheck_Settings {
                                         <?php endif; ?>
                                     </select>
                                     <p class="description"><?php _e( 'Default workflow. Can be overridden per product.', 'filecheck-woocommerce' ); ?></p>
-                                </td>
-                            </tr>
-                            <tr>
-                                <th scope="row"><label for="filecheck_presentation"><?php _e( 'Presentation Mode', 'filecheck-woocommerce' ); ?></label></th>
-                                <td>
-                                    <select name="filecheck_presentation" id="filecheck_presentation">
-                                        <option value="inline" <?php selected( $presentation, 'inline' ); ?>><?php _e( 'Inline (embedded in product page)', 'filecheck-woocommerce' ); ?></option>
-                                        <option value="dialog" <?php selected( $presentation, 'dialog' ); ?>><?php _e( 'Dialog (button opens modal overlay)', 'filecheck-woocommerce' ); ?></option>
-                                    </select>
-                                    <p class="description"><?php _e( 'How the upload widget is presented to customers.', 'filecheck-woocommerce' ); ?></p>
-                                </td>
-                            </tr>
-                            <tr>
-                                <th scope="row"><label for="filecheck_block_checkout"><?php _e( 'Enable Gating', 'filecheck-woocommerce' ); ?></label></th>
-                                <td>
-                                    <input name="filecheck_block_checkout" type="checkbox" id="filecheck_block_checkout" value="yes" <?php checked( $block_checkout, 'yes' ); ?>>
-                                    <span class="description"><?php _e( 'Disable "Add to Cart" button until valid files are uploaded.', 'filecheck-woocommerce' ); ?></span>
                                 </td>
                             </tr>
                         </tbody>
