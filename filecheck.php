@@ -1,16 +1,18 @@
 <?php
 /**
  * Plugin Name: Filecheck
- * Plugin URI: https://filecheck.io
+ * Plugin URI: https://filecheck.io/woocommerce
  * Description: Integrates the Filecheck Element on product pages to validate customer uploads before adding to cart.
  * Version: 1.0.0
  * Author: Filecheck
  * Author URI: https://filecheck.io
- * Text Domain: filecheck-woocommerce
- * Domain Path: /languages
+ * Text Domain: filecheck
+ * Requires at least: 5.0
+ * Requires PHP: 7.4
+ * License: GPLv2 or later
+ * License URI: https://www.gnu.org/licenses/gpl-2.0.html
  * WC requires at least: 4.0
  * WC tested up to: 9.4
- * Requires PHP: 7.4
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -41,26 +43,26 @@ require_once FILECHECK_PLUGIN_DIR . 'includes/class-fulfillment.php';
  * Main Filecheck WooCommerce Plugin Class
  */
 class Filecheck_WooCommerce {
-    
+
     protected static $_instance = null;
-    
+
     public static function instance() {
         if ( is_null( self::$_instance ) ) {
             self::$_instance = new self();
         }
         return self::$_instance;
     }
-    
+
     public function __construct() {
         add_action( 'plugins_loaded', array( $this, 'init' ) );
     }
-    
+
     public function init() {
         // Only run if WooCommerce is active
         if ( ! class_exists( 'WooCommerce' ) ) {
             return;
         }
-        
+
         // Initialize components
         Filecheck_API_Client::instance();
         Filecheck_Settings::instance();

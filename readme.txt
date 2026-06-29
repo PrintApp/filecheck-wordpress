@@ -1,87 +1,114 @@
 === Filecheck ===
 Contributors: filecheck
-Tags: preflight, print, file validation, custom print, artwork check, print shop, woocommerce preflight, pdf checker, resolution check, file upload, bleed check, cmyk check
-Requires at least: 4.0
-Tested up to: 6.5
+Tags: preflight, woocommerce, file validation, print, pdf
+Requires at least: 5.0
+Tested up to: 7.0
+Requires PHP: 7.4
 Stable tag: 1.0.0
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
-A seamless preflight checking and file validation solution for your online print store. Dynamically gates the "Add to Cart" button until customers upload valid, high-resolution artwork that meets your precise bleed, safety, and color constraints.
+Preflight artwork validation for WooCommerce. Gates "Add to Cart" until the customer uploads a print-ready file that passes your rules.
 
 == Description ==
 
-Elevate your customers' online print ordering experience and completely eliminate prepress artwork errors before order placement. 
+Eliminate prepress artwork errors before an order is ever placed. **Filecheck** embeds the lightweight, responsive **Filecheck Element** preflight widget directly on your WooCommerce product pages. Instead of back-and-forth emails about resolution, crop marks, and sizing, your customers get instant in-browser feedback on their PDF, PNG, or JPEG files before they can buy.
 
-**Filecheck** integrates the lightweight, beautiful, and highly responsive **Filecheck Element** preflight widget directly onto your WooCommerce product pages. Instead of tedious back-and-forth emails correcting resolutions, crop marks, and sizing mistakes, your customers receive instant, real-time feedback on their source PDF, PNG, or JPEG files in the browser before they can buy.
+Validation runs through the Filecheck cloud service and can check:
 
-Through our Software as a Service validation engine, our platform performs automatic validation checks:
-* **Resolution (DPI) Check** - Identifies blurry, low-resolution graphics.
-* **Bleed & Critical Safety margins** - Ensures text and crucial art elements won't get cut at the guillotine.
-* **Color Space and Profiles** - Verifies CMYK compliance versus RGB files.
-* **Dimensions & Aspect Ratio** - Confirms the uploaded file matches your selected product size.
-* **Fonts and Swatches** - Detects missing fonts or un-embedded vectors.
+* **Resolution (DPI)** - flags blurry, low-resolution graphics.
+* **Bleed & safety margins** - ensures critical art won't get trimmed.
+* **Color space** - verifies CMYK vs. RGB compliance.
+* **Dimensions & aspect ratio** - confirms the file matches the selected product size.
+* **Fonts & vectors** - detects missing fonts or un-embedded artwork.
 
-Once validated, the widget clears the customer to purchase, generates high-resolution print-ready proof thumbnails in the cart, and securely attaches a unique `jobId` to the order. After checkout, authorized store managers can view complete preflight reports and download optimized print-ready production files directly within the standard WooCommerce order dashboard.
+Once a file passes, the widget enables checkout, shows print-ready proof thumbnails in the cart, and attaches a unique job ID to the order line item. After checkout, store managers can view the full preflight report and download optimized production files directly from the WooCommerce order screen.
 
-== Benefits for Your Print Store ==
+**A Filecheck account is required** to use this plugin. Filecheck is a commercial software-as-a-service product. You can create an account and review pricing at [filecheck.io](https://filecheck.io).
 
-* **Drastically Reduce Refunds** - Prevent ordering with un-printable art.
-* **Eliminate Prepress Back-and-Forth** - Save hours of manual prepress review per designer.
-* **Smooth Checkout Integrity** - The widget features dynamic, seamless client-side button gating.
-* **Secure Production Downloads** - High-resolution print outputs are transferred directly to a secured storage bucket in your WordPress upload folder, completely shielded from direct view.
-* **Zero Configuration UI** - The beautiful preflight interface configures itself on the CDN based on your chosen workflow, blending perfectly into your existing theme rules.
+== Benefits ==
+
+* **Reduce refunds** - prevent orders placed with un-printable artwork.
+* **Cut prepress review time** - save manual checking per order.
+* **Seamless checkout** - dynamic client-side button gating.
+* **Secure production downloads** - outputs are streamed into a protected folder in your uploads directory, shielded from direct access.
+
+== External services ==
+
+This plugin connects to the Filecheck cloud service (operated by Filecheck) to validate customer file uploads and synchronize order data. It is required for the plugin to function. The plugin communicates with the following endpoints:
+
+* **https://cdn.filecheck.io** - loads the Filecheck Element widget script on product pages. Your publishable key is included in the script URL.
+* **https://api.filecheck.io** - the REST API used to verify your keys, list your workflows/connectors, sync orders, and retrieve job results and output files. Requests are authenticated with your secret key.
+
+**Data sent to Filecheck:**
+
+* When a customer uses the widget on a product page, their uploaded file(s) and the associated workflow/product identifiers are transmitted to Filecheck for validation.
+* When an order containing a Filecheck item is placed or changes status, order details are sent to Filecheck, including: order ID and status, currency and totals, line items (product name, SKU, quantity, job ID), the customer's name, email, phone, and shipping address.
+
+This data is sent at the moment a customer interacts with the widget and when orders are created or updated. By using this plugin you are sending the data described above to Filecheck.
+
+For details on how Filecheck handles this data, see:
+
+* Terms of Service: https://filecheck.io/terms
+* Privacy Policy: https://filecheck.io/privacy
 
 == Installation ==
 
 = Minimum Requirements =
-* WordPress 4.0 or greater
-* PHP version 7.4 or greater
+* WordPress 5.0 or greater
+* PHP 7.4 or greater
 * WooCommerce 4.0 or greater
+* A Filecheck account ([filecheck.io](https://filecheck.io))
 
 = Automatic Installation =
-1. Log in to your WordPress dashboard.
-2. Navigate to the **Plugins** menu and click **Add New**.
-3. In the search box, type `Filecheck` and click search.
-4. Locate the plugin and click **Install Now**.
-5. Once installed, click **Activate**.
+1. In your WordPress dashboard go to **Plugins > Add New**.
+2. Search for `Filecheck`.
+3. Click **Install Now**, then **Activate**.
 
 = Manual Installation =
-1. Download the plugin package.
-2. Extract the archive and upload the `filecheck-wordpress` folder to your `/wp-content/plugins/` directory via SFTP or your hosting provider's file explorer.
-3. Access your WordPress admin, head to the **Plugins** screen, and click **Activate** under **Filecheck**.
+1. Upload the `filecheck` folder to `/wp-content/plugins/`.
+2. Go to the **Plugins** screen and click **Activate** under **Filecheck**.
 
-= Setup & Credentials =
-1. Go to the newly created **Filecheck** page found in your left admin menu (or under **WooCommerce > Filecheck**).
-2. Enter your **Publishable Key** and **Secret Key** created in your [Filecheck backoffice](https://admin.filecheck.io).
-3. If necessary, provide your optional sub-tenant **Agent ID**.
-4. Click **Test Connection** to immediately verify your keys communicate with our REST API.
-5. Select your default global workflow from the dropdown menu and click **Save Settings**.
-6. (Optional) To override the workflow or tie dynamic connectors on specific products, navigate to the product's edit screen and configure the settings within the custom **Filecheck** product data tab.
+= Setup =
+1. Open the **Filecheck** menu in the WordPress admin sidebar.
+2. Enter your **Publishable Key** and **Secret Key** from your [Filecheck dashboard](https://admin.filecheck.io).
+3. (Optional) Enter your **Agent ID**.
+4. Click **Test Connection** to verify your keys.
+5. Select your default workflow and click **Save Settings**.
+6. (Optional) Override the workflow or connector per product from the **Filecheck** tab on the product edit screen.
 
 == Frequently Asked Questions ==
 
+= Do I need a Filecheck account? =
+Yes. Filecheck is a commercial cloud service and the plugin requires valid API keys from your Filecheck account to operate. See [filecheck.io](https://filecheck.io).
+
 = Does it support mobile uploads? =
-Yes. The Filecheck Element is fully responsive, optimized for touch interaction, and works beautifully across iOS, Android, and tablets.
+Yes. The Filecheck Element is fully responsive and works on iOS, Android, and tablets.
 
-= Where are the high-res files hosted and saved? =
-Uploads are processed on Filecheck's high-speed preflight servers. When an order is completed, the plugin automatically streams the print-optimized production files back to your WordPress server into a hidden physical directory (`wp-content/uploads/filecheck-secure/`) protected by custom server rules.
+= Where are the high-res files saved? =
+Uploads are processed on Filecheck's servers. When an order reaches processing or completed, the plugin streams the print-optimized output files back into a protected directory (`wp-content/uploads/filecheck-secure/`) that is not directly accessible.
 
-= Will it break with other custom product option plugins? =
-No. The widget uses a non-gating local storage session resume mechanism combined with an AJAX-synchronized WooCommerce session fallback. It doesn't modify native cart serialization, allowing it to co-exist cleanly with customization editors like PitchPrint or design template customizers.
+= Will it conflict with other product option plugins? =
+No. The widget uses a session-resume mechanism with an AJAX WooCommerce session fallback and does not modify native cart serialization, so it co-exists with customization editors.
 
 == Screenshots ==
 
-1. Preflight Element embedded inline on the WooCommerce product template page.
-2. Filecheck Settings menu featuring credential configuration and automatic connection tests.
-3. Per-product Filecheck management panel showing workflow assignment overrides and connector configurations.
-4. Secured order details metabox presenting preflight reports, active file outcomes, and instant admin high-resolution download shortcuts.
+1. Preflight Element embedded inline on the WooCommerce product page.
+2. Filecheck settings screen with credential configuration and connection test.
+3. Per-product Filecheck panel with workflow and connector overrides.
+4. Order details metabox showing preflight reports and secure download links.
 
 == Changelog ==
 
 = 1.0.0 =
 * Initial public release.
-* Implemented async Filecheck Elements CDN integration.
-* Added native form POST capture alongside robust WooCommerce AJAX session backup for guest and custom checkouts.
-* Built product administration meta panels and global configuration screens.
-* Built automatic server-side secure file fulfillment, streaming finalized outputs to protected directory structures.
+* Filecheck Element CDN integration with client-side Add to Cart gating.
+* Native form POST capture with WooCommerce AJAX session fallback for guest and custom checkouts.
+* Product and global configuration screens.
+* Secure server-side fulfillment streaming output files to a protected directory.
+* High-Performance Order Storage (HPOS) compatible.
+
+== Upgrade Notice ==
+
+= 1.0.0 =
+Initial release.
