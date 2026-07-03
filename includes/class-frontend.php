@@ -15,6 +15,23 @@ class Filecheck_Frontend {
     public function __construct() {
         add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_frontend_assets' ) );
         add_action( 'woocommerce_before_add_to_cart_button', array( $this, 'render_filecheck_element' ) );
+        add_filter( 'woocommerce_loop_add_to_cart_link', array( $this, 'modify_loop_add_to_cart_link' ), 10, 2 );
+    }
+
+    /**
+     * Replaces the direct "Add to Cart" button on shop/catalog pages with a link to the product details page
+     * for any products that require Filecheck.
+     */
+    public function modify_loop_add_to_cart_link( $html, $product ) {
+        $workflow_id = get_post_meta( $product->get_id(), '_filecheck_workflow_id', true );
+        if ( ! empty( $workflow_id ) && 'none' !== $workflow_id ) {
+            $html = sprintf(
+                '<a href="%s" class="button">%s</a>',
+                esc_url( $product->get_permalink() ),
+                esc_html__( 'Read more', 'woocommerce' )
+            );
+        }
+        return $html;
     }
 
     public function render_filecheck_element() {
