@@ -4,7 +4,7 @@ Tags: preflight, woocommerce, file validation, print, pdf
 Requires at least: 5.0
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 1.0.0
+Stable tag: 1.0.1
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -100,6 +100,9 @@ No. The widget uses a session-resume mechanism with an AJAX WooCommerce session 
 
 == Changelog ==
 
+= 1.0.1 =
+* Maintenance release.
+
 = 1.0.0 =
 * Initial public release.
 * Filecheck Element CDN integration with client-side Add to Cart gating.
@@ -109,6 +112,9 @@ No. The widget uses a session-resume mechanism with an AJAX WooCommerce session 
 * High-Performance Order Storage (HPOS) compatible.
 
 == Upgrade Notice ==
+
+= 1.0.1 =
+Maintenance release.
 
 = 1.0.0 =
 Initial release.

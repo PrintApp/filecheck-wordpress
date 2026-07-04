@@ -3,7 +3,7 @@
  * Plugin Name: Filecheck
  * Plugin URI: https://filecheck.io/docs/tutorials/wordpress-installation
  * Description: Integrates the Filecheck Element on product pages to validate customer uploads before adding to cart.
- * Version: 1.0.0
+ * Version: 1.0.1
  * Author: Print.App ApS
  * Author URI: https://filecheck.io
  * Text Domain: filecheck
@@ -18,7 +18,7 @@
 defined( 'ABSPATH' ) || exit;
 
 // Define plugin constants
-define( 'FILECHECK_VERSION', '1.0.0' );
+define( 'FILECHECK_VERSION', '1.0.1' );
 define( 'FILECHECK_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'FILECHECK_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 define( 'FILECHECK_PLUGIN_BASENAME', plugin_basename( __FILE__ ) );
