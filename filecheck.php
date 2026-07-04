@@ -1,10 +1,10 @@
 <?php
 /**
  * Plugin Name: Filecheck
- * Plugin URI: https://filecheck.io/woocommerce
+ * Plugin URI: https://filecheck.io/docs/tutorials/wordpress-installation
  * Description: Integrates the Filecheck Element on product pages to validate customer uploads before adding to cart.
  * Version: 1.0.0
- * Author: Filecheck
+ * Author: Print.App ApS
  * Author URI: https://filecheck.io
  * Text Domain: filecheck
  * Requires at least: 5.0

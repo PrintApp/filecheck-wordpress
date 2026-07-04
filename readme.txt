@@ -1,5 +1,5 @@
 === Filecheck ===
-Contributors: filecheck
+Contributors: printapp
 Tags: preflight, woocommerce, file validation, print, pdf
 Requires at least: 5.0
 Tested up to: 7.0
