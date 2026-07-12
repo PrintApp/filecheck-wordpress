@@ -1,0 +1,17 @@
+# Directories excluded from the WordPress.org SVN deploy / release zip
+/.git
+/.github
+/.claude
+/.wordpress-org
+/node_modules
+
+# Files
+.distignore
+.gitattributes
+.gitignore
+package.py
+README.md
+INTEGRATION.md
+RELEASE.md
+filecheck.zip
+*.zip
