@@ -68,6 +68,20 @@ class Filecheck_Settings {
                 </div>
             <?php endif; ?>
 
+            <div class="card" style="max-width: 800px; margin-bottom: 20px; border-left: 4px solid #2271b1;">
+                <h2 style="margin-top: 0;"><?php esc_html_e( 'New to Filecheck?', 'filecheck' ); ?></h2>
+                <p>
+                    <?php
+                    echo wp_kses_post( sprintf(
+                        /* translators: 1: registration URL, 2: Dev Hub URL */
+                        __( '<a href="%1$s" target="_blank" rel="noopener noreferrer">Create a free account</a> to get started &mdash; it includes free test credits and no credit card is required. Once registered, copy your API keys from the <a href="%2$s" target="_blank" rel="noopener noreferrer">Dev Hub</a> and paste them below.', 'filecheck' ),
+                        'https://admin.filecheck.io/register',
+                        'https://admin.filecheck.io/devhub'
+                    ) );
+                    ?>
+                </p>
+            </div>
+
             <form method="post" action="">
                 <?php wp_nonce_field( 'filecheck_save_settings_action', 'filecheck_save_settings_nonce' ); ?>
 
@@ -79,7 +93,15 @@ class Filecheck_Settings {
                                 <th scope="row"><label for="filecheck_publishable_key"><?php esc_html_e( 'Publishable Key', 'filecheck' ); ?></label></th>
                                 <td>
                                     <input name="filecheck_publishable_key" type="text" id="filecheck_publishable_key" value="<?php echo esc_attr( $publishable_key ); ?>" class="regular-text">
-                                    <p class="description"><?php esc_html_e( 'Your Filecheck Publishable Key (pk_live_... or pk_test_...).', 'filecheck' ); ?></p>
+                                    <p class="description">
+                                        <?php
+                                        echo wp_kses_post( sprintf(
+                                            /* translators: %s: Dev Hub URL */
+                                            __( 'Your Filecheck Publishable Key (pk_live_... or pk_test_...). Get it from the <a href="%s" target="_blank" rel="noopener noreferrer">Dev Hub</a>.', 'filecheck' ),
+                                            'https://admin.filecheck.io/devhub'
+                                        ) );
+                                        ?>
+                                    </p>
                                 </td>
                             </tr>
                             <tr>

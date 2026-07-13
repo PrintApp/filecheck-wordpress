@@ -4,7 +4,7 @@ Tags: preflight, woocommerce, file validation, print, pdf
 Requires at least: 5.0
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 1.0.2
+Stable tag: 1.0.3
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -135,6 +135,12 @@ Depending on your workflow rules, Filecheck can auto-correct common issues (RGB 
 
 == Changelog ==
 
+= 1.0.3 =
+* WooCommerce is now declared as a required plugin (WordPress enforces the dependency on WP 6.5+).
+* Added a Settings action link and a Docs link on the Plugins screen.
+* Settings page: getting-started guidance with sign-up link and Dev Hub links for locating your API keys.
+* More descriptive plugin description.
+
 = 1.0.2 =
 * First release on the WordPress.org plugin directory.
 * New store listing with banners, icons, and screenshots.
@@ -152,6 +158,9 @@ Depending on your workflow rules, Filecheck can auto-correct common issues (RGB 
 * High-Performance Order Storage (HPOS) compatible.
 
 == Upgrade Notice ==
+
+= 1.0.3 =
+Declares the WooCommerce dependency and improves onboarding links on the Plugins and Settings screens.
 
 = 1.0.2 =
 First release available from the WordPress.org plugin directory.

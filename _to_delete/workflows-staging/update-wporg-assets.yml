@@ -1,0 +1,35 @@
+name: Update wp.org assets & readme
+
+# Updates ONLY the store listing on WordPress.org without shipping a new
+# plugin version: the .wordpress-org assets (banner, icon, screenshots)
+# and readme.txt (description, FAQ, "Tested up to", etc.).
+#
+# Runs automatically when those files change on main, or trigger it
+# manually from the Actions tab.
+#
+# Uses the same SVN_USERNAME / SVN_PASSWORD secrets as the release workflow.
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - '.wordpress-org/**'
+      - 'readme.txt'
+
+jobs:
+  update-assets:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Update readme and assets on WordPress.org
+        uses: 10up/action-wordpress-plugin-asset-update@stable
+        env:
+          SVN_USERNAME: ${{ secrets.SVN_USERNAME }}
+          SVN_PASSWORD: ${{ secrets.SVN_PASSWORD }}
+          SLUG: filecheck
+          ASSETS_DIR: .wordpress-org
+          README_NAME: readme.txt

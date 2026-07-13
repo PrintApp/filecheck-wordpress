@@ -2,13 +2,14 @@
 /**
  * Plugin Name: Filecheck
  * Plugin URI: https://filecheck.io/docs/tutorials/wordpress-installation
- * Description: Integrates the Filecheck Element on product pages to validate customer uploads before adding to cart.
- * Version: 1.0.2
+ * Description: Print preflight for WooCommerce. Embeds the Filecheck Element on product pages to validate customer artwork (resolution, bleed, CMYK, fonts) as it is uploaded, keeps Add to Cart locked until every file passes, and delivers print-ready output files to the order.
+ * Version: 1.0.3
  * Author: Print.App ApS
  * Author URI: https://filecheck.io
  * Text Domain: filecheck
  * Requires at least: 5.0
  * Requires PHP: 7.4
+ * Requires Plugins: woocommerce
  * License: GPLv2 or later
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
  * WC requires at least: 4.0
@@ -18,10 +19,27 @@
 defined( 'ABSPATH' ) || exit;
 
 // Define plugin constants
-define( 'FILECHECK_VERSION', '1.0.2' );
+define( 'FILECHECK_VERSION', '1.0.3' );
 define( 'FILECHECK_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'FILECHECK_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 define( 'FILECHECK_PLUGIN_BASENAME', plugin_basename( __FILE__ ) );
+
+// Add a "Settings" action link on the Plugins screen (next to Deactivate)
+add_filter( 'plugin_action_links_' . FILECHECK_PLUGIN_BASENAME, 'filecheck_plugin_action_links' );
+function filecheck_plugin_action_links( $links ) {
+    $settings_link = '<a href="' . esc_url( admin_url( 'admin.php?page=filecheck-settings' ) ) . '">' . esc_html__( 'Settings', 'filecheck' ) . '</a>';
+    array_unshift( $links, $settings_link );
+    return $links;
+}
+
+// Add a "Docs" link to the plugin meta row (Version | By ... | Visit plugin site)
+add_filter( 'plugin_row_meta', 'filecheck_plugin_row_meta', 10, 2 );
+function filecheck_plugin_row_meta( $links, $file ) {
+    if ( FILECHECK_PLUGIN_BASENAME === $file ) {
+        $links[] = '<a href="https://filecheck.io/docs/tutorials/wordpress-installation" target="_blank" rel="noopener noreferrer">' . esc_html__( 'Docs', 'filecheck' ) . '</a>';
+    }
+    return $links;
+}
 
 // Declare compatibility with High-Performance Order Storage (HPOS)
 add_action( 'before_woocommerce_init', 'filecheck_declare_hpos_compatibility' );
