@@ -22,6 +22,7 @@ class Filecheck_Cart {
         add_filter( 'woocommerce_add_cart_item_data', array( $this, 'add_cart_item_data' ), 10, 3 );
         add_filter( 'woocommerce_get_item_data', array( $this, 'get_item_data' ), 10, 2 );
         add_action( 'woocommerce_after_cart_item_name', array( $this, 'render_cart_item_proofs' ), 10, 2 );
+        add_filter( 'woocommerce_store_api_cart_item_images', array( $this, 'filter_store_api_cart_item_images' ), 10, 2 );
         add_action( 'woocommerce_checkout_create_order_line_item', array( $this, 'add_order_line_item_meta' ), 10, 4 );
         add_action( 'woocommerce_order_item_meta_end', array( $this, 'order_item_meta_end' ), 10, 4 );
         add_filter( 'woocommerce_hidden_order_itemmeta', array( $this, 'hide_internal_item_meta' ) );
@@ -135,6 +136,42 @@ class Filecheck_Cart {
             echo '<span class="fc-cart-proof-more">' . esc_html( sprintf( __( '+%d more', 'filecheck' ), $more ) ) . '</span>';
         }
         echo '</div>';
+    }
+
+    /**
+     * Cart/Checkout Block support (WooCommerce 9.6+): replaces the cart
+     * item's product image with the uploaded files' soft-proofs in the
+     * Store API response — one image per file, first page of each. The
+     * classic cart is covered by render_cart_item_proofs() instead.
+     * Falls back to the product image when the job has no proofs.
+     */
+    public function filter_store_api_cart_item_images( $images, $cart_item ) {
+        if ( empty( $cart_item['filecheck_job_id'] ) ) {
+            return $images;
+        }
+
+        $files = $this->get_proof_files( $cart_item['filecheck_job_id'] );
+        if ( empty( $files ) ) {
+            return $images;
+        }
+
+        $proof_images = array();
+        foreach ( $files as $index => $file ) {
+            $url = $file['proofs'][0]['url'];
+            // Synthetic id — WooCommerce only requires the property to be
+            // set (it is used for logging, not attachment lookups).
+            $proof_images[] = (object) array(
+                'id'        => $index + 1,
+                'src'       => $url,
+                'thumbnail' => $url,
+                'srcset'    => '',
+                'sizes'     => '',
+                'name'      => $file['name'],
+                'alt'       => $file['name'],
+            );
+        }
+
+        return $proof_images;
     }
 
     /**
