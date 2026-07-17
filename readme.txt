@@ -4,7 +4,7 @@ Tags: preflight, woocommerce, file validation, print, pdf
 Requires at least: 5.0
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 1.0.4
+Stable tag: 1.0.5
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -135,6 +135,10 @@ Depending on your workflow rules, Filecheck can auto-correct common issues (RGB 
 
 == Changelog ==
 
+= 1.0.5 =
+* Soft-proof previews now work in the block-based Cart: the cart item's product image is replaced with the uploaded files' proofs (WooCommerce 9.6+). Also applies to the Mini-Cart and the Checkout Block order summary.
+* Fixed a text-domain mismatch flagged by Plugin Check (the catalog "Read more" link now uses the plugin's own text domain).
+
 = 1.0.4 =
 * Cart page now shows soft-proof thumbnails for uploaded files — first page per file with a page-count badge, capped with a "+N more" indicator (classic cart template).
 * Proof lookups are cached per job, so the cart adds at most one API call per uploaded job.
@@ -164,6 +168,9 @@ Depending on your workflow rules, Filecheck can auto-correct common issues (RGB 
 * High-Performance Order Storage (HPOS) compatible.
 
 == Upgrade Notice ==
+
+= 1.0.5 =
+Proof previews now show in the block-based Cart, Mini-Cart, and Checkout order summary.
 
 = 1.0.4 =
 Adds soft-proof thumbnails for uploaded files on the cart page.
