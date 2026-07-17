@@ -4,7 +4,7 @@ Tags: preflight, woocommerce, file validation, print, pdf
 Requires at least: 5.0
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 1.0.3
+Stable tag: 1.0.4
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -135,6 +135,12 @@ Depending on your workflow rules, Filecheck can auto-correct common issues (RGB 
 
 == Changelog ==
 
+= 1.0.4 =
+* Cart page now shows soft-proof thumbnails for uploaded files — first page per file with a page-count badge, capped with a "+N more" indicator (classic cart template).
+* Proof lookups are cached per job, so the cart adds at most one API call per uploaded job.
+* Files without proofing enabled are skipped; the cart looks unchanged for non-proofing workflows.
+* Clearer API key placeholder text on the settings screen.
+
 = 1.0.3 =
 * WooCommerce is now declared as a required plugin (WordPress enforces the dependency on WP 6.5+).
 * Added a Settings action link and a Docs link on the Plugins screen.
@@ -158,6 +164,9 @@ Depending on your workflow rules, Filecheck can auto-correct common issues (RGB 
 * High-Performance Order Storage (HPOS) compatible.
 
 == Upgrade Notice ==
+
+= 1.0.4 =
+Adds soft-proof thumbnails for uploaded files on the cart page.
 
 = 1.0.3 =
 Declares the WooCommerce dependency and improves onboarding links on the Plugins and Settings screens.

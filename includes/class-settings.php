@@ -97,7 +97,7 @@ class Filecheck_Settings {
                                         <?php
                                         echo wp_kses_post( sprintf(
                                             /* translators: %s: Dev Hub URL */
-                                            __( 'Your Filecheck Publishable Key (pk_live_... or pk_test_...). Get it from the <a href="%s" target="_blank" rel="noopener noreferrer">Dev Hub</a>.', 'filecheck' ),
+                                            __( 'Your Filecheck Publishable Key (pk_). Get it from the <a href="%s" target="_blank" rel="noopener noreferrer">Dev Hub</a>.', 'filecheck' ),
                                             'https://admin.filecheck.io/devhub'
                                         ) );
                                         ?>
@@ -108,7 +108,7 @@ class Filecheck_Settings {
                                 <th scope="row"><label for="filecheck_secret_key"><?php esc_html_e( 'Secret Key', 'filecheck' ); ?></label></th>
                                 <td>
                                     <input name="filecheck_secret_key" type="password" id="filecheck_secret_key" value="<?php echo esc_attr( $secret_key ); ?>" class="regular-text">
-                                    <p class="description"><?php esc_html_e( 'Your Filecheck Secret Key (sk_live_... or sk_test_...). Keep this private.', 'filecheck' ); ?></p>
+                                    <p class="description"><?php esc_html_e( 'Your Filecheck Secret Key (sk_). Keep this private.', 'filecheck' ); ?></p>
                                 </td>
                             </tr>
                             <tr>

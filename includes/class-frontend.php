@@ -73,6 +73,17 @@ class Filecheck_Frontend {
     }
 
     public function enqueue_frontend_assets() {
+        // Cart page only needs the stylesheet (proof thumbnails).
+        if ( is_cart() ) {
+            wp_enqueue_style(
+                'filecheck-frontend',
+                FILECHECK_PLUGIN_URL . 'assets/css/frontend.css',
+                array(),
+                FILECHECK_VERSION
+            );
+            return;
+        }
+
         if ( ! is_product() ) {
             return;
         }

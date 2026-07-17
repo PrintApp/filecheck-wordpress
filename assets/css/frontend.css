@@ -122,6 +122,47 @@
     flex-grow: 1;
 }
 
+/* Cart page — soft-proof thumbnails under the item name */
+.fc-cart-proofs {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    margin-top: 6px;
+}
+
+.fc-cart-proof {
+    position: relative;
+    display: inline-block;
+}
+
+.fc-cart-proof img {
+    display: block;
+    width: 48px;
+    height: 48px;
+    object-fit: cover;
+    background: #fff;
+    border: 1px solid #d1d5db;
+    border-radius: 4px;
+}
+
+.fc-cart-proof-pages {
+    position: absolute;
+    bottom: 2px;
+    right: 2px;
+    padding: 2px 4px;
+    background: rgba(15, 23, 42, 0.65);
+    color: #fff;
+    font-size: 9px;
+    line-height: 1;
+    border-radius: 3px;
+}
+
+.fc-cart-proof-more {
+    font-size: 12px;
+    color: #6b7280;
+}
+
 /* Ensure iframe within shadow DOM container inside slot handles resizing well */
 .fc-slot-wrapper iframe {
     border: none !important;
