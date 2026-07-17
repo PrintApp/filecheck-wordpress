@@ -28,7 +28,7 @@ class Filecheck_Frontend {
             $html = sprintf(
                 '<a href="%s" class="button">%s</a>',
                 esc_url( $product->get_permalink() ),
-                esc_html__( 'Read more', 'woocommerce' )
+                esc_html__( 'Read more', 'filecheck' )
             );
         }
         return $html;
