@@ -296,7 +296,16 @@ class Filecheck_Fulfillment {
                     continue;
                 }
 
-                $filename = isset( $run['source']['name'] ) ? sanitize_file_name( $run['source']['name'] ) : '';
+                // The signed URL of the file to fulfil (the corrected file,
+                // else the upload). Missing while the run is still processing.
+                $download_url = isset( $run['downloadUrl'] ) ? $run['downloadUrl'] : '';
+                if ( empty( $download_url ) ) {
+                    // translators: %s: Filecheck run ID.
+                    $order->add_order_note( sprintf( __( 'Filecheck: No file is available to download yet for Run %s.', 'filecheck' ), $run_id ) );
+                    continue;
+                }
+
+                $filename = isset( $run['name'] ) ? sanitize_file_name( $run['name'] ) : '';
                 if ( empty( $filename ) ) {
                     $ext = '.pdf';
                     if ( isset( $run['acceptKey'] ) && $run['acceptKey'] === 'raster' ) {
@@ -314,14 +323,13 @@ class Filecheck_Fulfillment {
                     file_put_contents( $secure_dir . '/index.php', "<?php // Silence\n" ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents -- writing a blank index for directory protection.
                 }
 
-                $local_filename = time() . '_' . $filename;
+                // Run id keeps two same-named files in one order apart.
+                $local_filename = time() . '_' . $run_id . '_' . $filename;
                 $local_filepath = $secure_dir . '/' . $local_filename;
 
-                $api_url = Filecheck_API_Client::instance()->get_api_url();
-                $download_url = $api_url . '/jobs/' . urlencode( $job_id ) . '/runs/' . urlencode( $run_id ) . '/output';
-
+                // No Authorization header: the URL is presigned, and storage
+                // rejects a request that carries both.
                 $download_response = wp_remote_get( $download_url, array(
-                    'headers'  => array( 'Authorization' => 'Bearer ' . $secret_key ),
                     'timeout'  => 300,
                     'stream'   => true,
                     'filename' => $local_filepath,
