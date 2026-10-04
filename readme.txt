@@ -4,7 +4,7 @@ Tags: preflight, woocommerce, file validation, print, pdf
 Requires at least: 5.0
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 1.0.5
+Stable tag: 1.0.6
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -135,6 +135,9 @@ Depending on your workflow rules, Filecheck can auto-correct common issues (RGB 
 
 == Changelog ==
 
+= 1.0.6 =
+* Fixed order file downloads: processing an order no longer fails with "API returned HTTP code 404". Each item's print-ready files (corrected where Filecheck fixed them, otherwise as uploaded) are saved to the order.
+
 = 1.0.5 =
 * Soft-proof previews now work in the block-based Cart: the cart item's product image is replaced with the uploaded files' proofs (WooCommerce 9.6+). Also applies to the Mini-Cart and the Checkout Block order summary.
 * Fixed a text-domain mismatch flagged by Plugin Check (the catalog "Read more" link now uses the plugin's own text domain).
@@ -168,6 +171,9 @@ Depending on your workflow rules, Filecheck can auto-correct common issues (RGB 
 * High-Performance Order Storage (HPOS) compatible.
 
 == Upgrade Notice ==
+
+= 1.0.6 =
+Fixes order file downloads, which failed with an HTTP 404 note on every order.
 
 = 1.0.5 =
 Proof previews now show in the block-based Cart, Mini-Cart, and Checkout order summary.
