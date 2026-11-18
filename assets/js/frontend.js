@@ -69,6 +69,12 @@
                 agentId:            p.agent_id || null,
             };
             if (p.connector_id) config.connectorId = p.connector_id;
+            // Artwork after checkout: 'either' makes the upload optional,
+            // 'after_order' shows a notice instead of the upload box. Always
+            // set, 'checkout' included: the plugin's setting decides both this
+            // page and which order lines are sent as waiting for artwork, so
+            // the account default in FILECHECK_CONFIG must not override it.
+            config.artworkTiming = p.artwork_timing || 'checkout';
 
             // Resume a previous job if the customer refreshes the page
             var resumeJobId = getStoredJobId(p.product_id);

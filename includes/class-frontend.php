@@ -139,6 +139,7 @@ class Filecheck_Frontend {
             'agent_id'        => $agent_id,
             'workflow_id'     => $workflow_id,
             'connector_id'    => $connector_id,
+            'artwork_timing'  => Filecheck_Product::artwork_timing( $product_id ),
             'product_id'      => $product_id,
             'ajax_url'        => admin_url( 'admin-ajax.php' ),
             'nonce'           => wp_create_nonce( 'filecheck_save_job' ),

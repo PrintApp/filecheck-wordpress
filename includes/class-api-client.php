@@ -160,6 +160,29 @@ class Filecheck_API_Client {
         return true;
     }
 
+    /**
+     * Signed link to the order on the Filecheck upload page (artwork after
+     * checkout), as { url, orderName, status, items }. Null when no line of
+     * the order waits for artwork.
+     */
+    public function get_upload_link( $order_id, $secret_key = '' ) {
+        if ( empty( $secret_key ) ) {
+            $secret_key = get_option( 'filecheck_secret_key' );
+        }
+        if ( empty( $secret_key ) ) {
+            return null;
+        }
+        $response = wp_remote_get( $this->api_url . '/orders/' . rawurlencode( $order_id ) . '/upload-link', array(
+            'headers' => $this->get_headers( $secret_key ),
+            'timeout' => 10,
+        ) );
+        if ( is_wp_error( $response ) || 200 !== (int) wp_remote_retrieve_response_code( $response ) ) {
+            return null;
+        }
+        $body = json_decode( wp_remote_retrieve_body( $response ), true );
+        return ( is_array( $body ) && ! empty( $body['url'] ) ) ? $body : null;
+    }
+
     public function get_job( $job_id, $secret_key = '' ) {
         if ( empty( $secret_key ) ) {
             $secret_key = get_option( 'filecheck_secret_key' );

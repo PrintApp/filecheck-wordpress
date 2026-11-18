@@ -33,6 +33,132 @@ class Filecheck_Fulfillment {
 
         // Handle secure file download request for admin
         add_action( 'admin_init', array( $this, 'handle_secure_download' ) );
+
+        // Artwork after checkout: the "Upload your artwork" link in the store's
+        // own order emails, on the order received page and in My Account.
+        add_action( 'woocommerce_email_order_details', array( $this, 'email_upload_link' ), 5, 4 );
+        add_action( 'woocommerce_order_details_before_order_table', array( $this, 'render_upload_link' ), 5, 1 );
+    }
+
+    /**
+     * Order statuses at which lines bought without artwork are sent to
+     * Filecheck. WooCommerce creates the order before payment (pending,
+     * checkout-draft), so abandoned checkouts never get an upload page.
+     */
+    const AWAIT_STATUSES = array( 'processing', 'completed', 'on-hold' );
+
+    /** Orders already synced for their upload link in this request. */
+    private $synced_for_link = array();
+
+    /**
+     * The workflow a line without a file is collected on after checkout, or
+     * '' when the line is not waiting for artwork (it has a file, the product
+     * has no Filecheck workflow, or the product collects at checkout).
+     */
+    protected function await_workflow( $item ) {
+        if ( ! $item instanceof WC_Order_Item_Product || $item->get_meta( '_filecheck_job_id' ) ) {
+            return '';
+        }
+        $product_id = $item->get_product_id();
+        $workflow   = Filecheck_Product::workflow_id( $product_id );
+        if ( ! $workflow || 'checkout' === Filecheck_Product::artwork_timing( $product_id ) ) {
+            return '';
+        }
+        return $workflow;
+    }
+
+    /** Does this paid order have a line waiting for artwork? */
+    protected function has_lines_awaiting( $order ) {
+        if ( ! in_array( $order->get_status(), self::AWAIT_STATUSES, true ) ) {
+            return false;
+        }
+        foreach ( $order->get_items() as $item ) {
+            if ( $this->await_workflow( $item ) ) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Signed upload page link for an order that still needs artwork, cached
+     * on the order. $refresh re-asks Filecheck (pages the customer views);
+     * emails use the cached link. Null when nothing on the order waits.
+     *
+     * WooCommerce sends the "processing" email before the status-change hook
+     * that syncs the order, so an order whose lines wait for artwork but has
+     * not been synced yet is synced here first (once per request).
+     */
+    public function get_upload_link( $order, $refresh = false ) {
+        if ( ! $order instanceof WC_Abstract_Order ) {
+            return null;
+        }
+        if ( 'yes' !== $order->get_meta( '_filecheck_awaits_artwork' ) ) {
+            $id = $order->get_id();
+            if ( isset( $this->synced_for_link[ $id ] ) || ! $this->has_lines_awaiting( $order ) ) {
+                return null;
+            }
+            $this->synced_for_link[ $id ] = true;
+            if ( true !== $this->push_order_to_filecheck( $order, $order->get_status() ) ) {
+                return null;
+            }
+            $refresh = false; // the sync just fetched it
+        }
+        $cached = $order->get_meta( '_filecheck_upload_url' );
+        if ( $cached && ! $refresh ) {
+            return array( 'url' => $cached, 'status' => $order->get_meta( '_filecheck_upload_status' ) );
+        }
+        $link = Filecheck_API_Client::instance()->get_upload_link( $order->get_id() );
+        if ( ! $link ) {
+            return $cached ? array( 'url' => $cached, 'status' => $order->get_meta( '_filecheck_upload_status' ) ) : null;
+        }
+        $order->update_meta_data( '_filecheck_upload_url', esc_url_raw( $link['url'] ) );
+        $order->update_meta_data( '_filecheck_upload_status', sanitize_key( $link['status'] ?? '' ) );
+        $order->save_meta_data();
+        return array( 'url' => $link['url'], 'status' => $link['status'] ?? '' );
+    }
+
+    protected function upload_link_enabled() {
+        return 'yes' === get_option( 'filecheck_upload_link_in_emails', 'yes' );
+    }
+
+    public function email_upload_link( $order, $sent_to_admin = false, $plain_text = false, $email = null ) {
+        if ( $sent_to_admin || ! $this->upload_link_enabled() ) {
+            return;
+        }
+        $link = $this->get_upload_link( $order );
+        if ( ! $link || 'complete' === $link['status'] ) {
+            return;
+        }
+        $heading = __( 'Upload your artwork', 'filecheck' );
+        $text    = __( 'We need your artwork for some items on this order before we can print them. Upload your files any time using the link below, and we will check them before we print.', 'filecheck' );
+        if ( $plain_text ) {
+            echo "\n" . esc_html( strtoupper( $heading ) ) . "\n\n" . esc_html( $text ) . "\n" . esc_url( $link['url'] ) . "\n\n";
+            return;
+        }
+        ?>
+        <div style="margin:0 0 24px;padding:16px;border:1px solid #e5e5e5;border-radius:4px;">
+            <h2 style="margin-top:0;"><?php echo esc_html( $heading ); ?></h2>
+            <p><?php echo esc_html( $text ); ?></p>
+            <p style="margin-bottom:0;"><a href="<?php echo esc_url( $link['url'] ); ?>" style="font-weight:bold;"><?php esc_html_e( 'Upload artwork', 'filecheck' ); ?></a></p>
+        </div>
+        <?php
+    }
+
+    public function render_upload_link( $order ) {
+        if ( ! $this->upload_link_enabled() ) {
+            return;
+        }
+        $link = $this->get_upload_link( $order, true );
+        if ( ! $link || 'complete' === $link['status'] ) {
+            return;
+        }
+        ?>
+        <div class="woocommerce-info filecheck-upload-artwork">
+            <?php esc_html_e( 'Some items on this order still need your artwork.', 'filecheck' ); ?>
+            <a class="button" href="<?php echo esc_url( $link['url'] ); ?>"><?php esc_html_e( 'Upload artwork', 'filecheck' ); ?></a>
+        </div>
+        <?php
     }
 
     public function enqueue_order_admin_assets( $hook ) {
@@ -166,15 +292,27 @@ class Filecheck_Fulfillment {
             return null;
         }
 
-        $line_items = array();
+        $line_items    = array();
+        $awaiting      = false;
+        $collect_later = in_array( $status, self::AWAIT_STATUSES, true );
         foreach ( $order->get_items() as $item_id => $item ) {
-            $job_id = $item->get_meta( '_filecheck_job_id' );
+            $job_id     = $item->get_meta( '_filecheck_job_id' );
+            $product_id = $item->get_product_id();
+
+            // Artwork after checkout: a line bought without a file, on a
+            // product that collects artwork after the order, goes to Filecheck
+            // too, so the customer can upload it on the Filecheck upload page.
+            // Only once the order is paid (or on hold): see AWAIT_STATUSES.
+            $await_workflow = '';
             if ( empty( $job_id ) ) {
-                continue;
+                $await_workflow = $collect_later ? $this->await_workflow( $item ) : '';
+                if ( ! $await_workflow ) {
+                    continue;
+                }
+                $awaiting = true;
             }
 
-            $product    = $item->get_product();
-            $product_id = $item->get_product_id();
+            $product = $item->get_product();
 
             $item_data = array(
                 'itemId'    => (string) $item_id,
@@ -183,8 +321,12 @@ class Filecheck_Fulfillment {
                 'quantity'  => $item->get_quantity(),
                 'sku'       => $product ? $product->get_sku() : '',
                 'total'     => $order->get_line_total( $item, true ),
-                'jobId'     => $job_id,
+                'jobId'     => $job_id ? $job_id : null,
             );
+            if ( $await_workflow ) {
+                $item_data['awaitArtwork'] = true;
+                $item_data['workflowId']   = $await_workflow;
+            }
 
             $excluded_keys = array( '_filecheck_job_id', '_filecheck_downloaded_files', '_reduced_stock', '_qty' );
             foreach ( $item->get_meta_data() as $meta ) {
@@ -224,6 +366,8 @@ class Filecheck_Fulfillment {
 
         $payload = array(
             'orderId'  => (string) $order->get_id(),
+            // What the customer sees and types on the upload page.
+            'orderName' => (string) $order->get_order_number(),
             'status'   => $status,
             'currency' => $order->get_currency(),
             'total'    => $order->get_total(),
@@ -235,7 +379,16 @@ class Filecheck_Fulfillment {
             $payload['shippingAddress'] = $shipping;
         }
 
-        return Filecheck_API_Client::instance()->sync_order( $order->get_id(), $payload, $secret_key );
+        $result = Filecheck_API_Client::instance()->sync_order( $order->get_id(), $payload, $secret_key );
+
+        // Fetch the upload link now, so the order emails that follow can show it.
+        if ( true === $result && $awaiting ) {
+            $order->update_meta_data( '_filecheck_awaits_artwork', 'yes' );
+            $order->save_meta_data();
+            $this->get_upload_link( $order, true );
+        }
+
+        return $result;
     }
 
     public function process_order_files( $order_id ) {

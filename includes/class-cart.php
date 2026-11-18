@@ -95,6 +95,14 @@ class Filecheck_Cart {
                 'name'    => __( 'Files Uploaded', 'filecheck' ),
                 'display' => __( 'Yes', 'filecheck' ),
             );
+        } elseif ( ! empty( $cart_item['product_id'] )
+            && Filecheck_Product::workflow_id( $cart_item['product_id'] )
+            && 'checkout' !== Filecheck_Product::artwork_timing( $cart_item['product_id'] ) ) {
+            // Artwork after checkout: say when the file is collected.
+            $item_data[] = array(
+                'name'    => __( 'Artwork', 'filecheck' ),
+                'display' => __( 'Upload after checkout', 'filecheck' ),
+            );
         }
         return $item_data;
     }

@@ -28,6 +28,35 @@ class Filecheck_Product {
         return $tabs;
     }
 
+    /** Artwork timing choices (artwork after checkout). */
+    public static function timing_options( $with_default = true ) {
+        $options = array(
+            'checkout'    => __( 'At checkout (before add to cart)', 'filecheck' ),
+            'either'      => __( 'Optional, or after checkout', 'filecheck' ),
+            'after_order' => __( 'After checkout only', 'filecheck' ),
+        );
+        return $with_default ? array( '' => __( 'Use Global Default', 'filecheck' ) ) + $options : $options;
+    }
+
+    /** This product's resolved timing: product setting, then the global default. */
+    public static function artwork_timing( $product_id ) {
+        $valid  = array( 'checkout', 'either', 'after_order' );
+        $timing = get_post_meta( $product_id, '_filecheck_artwork_timing', true );
+        if ( ! in_array( $timing, $valid, true ) ) {
+            $timing = get_option( 'filecheck_artwork_timing', 'checkout' );
+        }
+        return in_array( $timing, $valid, true ) ? $timing : 'checkout';
+    }
+
+    /** The product's workflow id with "global" resolved; '' when Filecheck is off for it. */
+    public static function workflow_id( $product_id ) {
+        $workflow_id = get_post_meta( $product_id, '_filecheck_workflow_id', true );
+        if ( 'global' === $workflow_id ) {
+            $workflow_id = get_option( 'filecheck_default_workflow_id' );
+        }
+        return ( empty( $workflow_id ) || 'none' === $workflow_id ) ? '' : $workflow_id;
+    }
+
     public function product_data_panel_content() {
         global $post;
 
@@ -39,6 +68,7 @@ class Filecheck_Product {
         }
         $connector_id = get_post_meta( $product_id, '_filecheck_connector_id', true );
         $presentation = get_post_meta( $product_id, '_filecheck_presentation', true );
+        $timing       = get_post_meta( $product_id, '_filecheck_artwork_timing', true );
 
         $workflows = Filecheck_API_Client::instance()->get_workflows();
         $workflow_options = array(
@@ -98,6 +128,15 @@ class Filecheck_Product {
                     ),
                     'value'         => $presentation,
                 ) );
+
+                woocommerce_wp_select( array(
+                    'id'            => '_filecheck_artwork_timing',
+                    'label'         => __( 'When to Collect Artwork', 'filecheck' ),
+                    'description'   => __( 'At checkout: upload before add to cart. Optional, or after checkout: upload now or later. After checkout only: customers upload after paying, from a link in their order email.', 'filecheck' ),
+                    'desc_tip'      => true,
+                    'options'       => self::timing_options(),
+                    'value'         => $timing,
+                ) );
                 ?>
             </div>
         </div>
@@ -111,10 +150,12 @@ class Filecheck_Product {
         $workflow_id  = isset( $_POST['_filecheck_workflow_id'] ) ? sanitize_text_field( wp_unslash( $_POST['_filecheck_workflow_id'] ) ) : 'none';
         $connector_id = isset( $_POST['_filecheck_connector_id'] ) ? sanitize_text_field( wp_unslash( $_POST['_filecheck_connector_id'] ) ) : '';
         $presentation = isset( $_POST['_filecheck_presentation'] ) ? sanitize_text_field( wp_unslash( $_POST['_filecheck_presentation'] ) ) : '';
+        $timing       = isset( $_POST['_filecheck_artwork_timing'] ) ? sanitize_text_field( wp_unslash( $_POST['_filecheck_artwork_timing'] ) ) : '';
         // phpcs:enable WordPress.Security.NonceVerification.Missing
 
         update_post_meta( $product_id, '_filecheck_workflow_id', $workflow_id );
         update_post_meta( $product_id, '_filecheck_connector_id', $connector_id );
         update_post_meta( $product_id, '_filecheck_presentation', $presentation );
+        update_post_meta( $product_id, '_filecheck_artwork_timing', array_key_exists( $timing, self::timing_options() ) ? $timing : '' );
     }
 }

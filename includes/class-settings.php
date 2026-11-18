@@ -43,6 +43,9 @@ class Filecheck_Settings {
             update_option( 'filecheck_agent_id', sanitize_text_field( wp_unslash( $_POST['filecheck_agent_id'] ?? '' ) ) );
             update_option( 'filecheck_api_url', esc_url_raw( wp_unslash( $_POST['filecheck_api_url'] ?? '' ) ) );
             update_option( 'filecheck_default_workflow_id', sanitize_text_field( wp_unslash( $_POST['filecheck_default_workflow_id'] ?? '' ) ) );
+            $timing = sanitize_text_field( wp_unslash( $_POST['filecheck_artwork_timing'] ?? 'checkout' ) );
+            update_option( 'filecheck_artwork_timing', in_array( $timing, array( 'checkout', 'either', 'after_order' ), true ) ? $timing : 'checkout' );
+            update_option( 'filecheck_upload_link_in_emails', isset( $_POST['filecheck_upload_link_in_emails'] ) ? 'yes' : 'no' );
 
             $message = __( 'Settings saved successfully.', 'filecheck' );
         }
@@ -52,6 +55,8 @@ class Filecheck_Settings {
         $agent_id            = get_option( 'filecheck_agent_id' );
         $api_url             = get_option( 'filecheck_api_url', 'https://api.filecheck.io' );
         $default_workflow_id = get_option( 'filecheck_default_workflow_id' );
+        $artwork_timing      = get_option( 'filecheck_artwork_timing', 'checkout' );
+        $link_in_emails      = get_option( 'filecheck_upload_link_in_emails', 'yes' );
 
         $workflows = Filecheck_API_Client::instance()->get_workflows( $secret_key );
 
@@ -149,6 +154,24 @@ class Filecheck_Settings {
                                         <?php endif; ?>
                                     </select>
                                     <p class="description"><?php esc_html_e( 'Default workflow. Can be overridden per product.', 'filecheck' ); ?></p>
+                                </td>
+                            </tr>
+                            <tr>
+                                <th scope="row"><label for="filecheck_artwork_timing"><?php esc_html_e( 'When to Collect Artwork', 'filecheck' ); ?></label></th>
+                                <td>
+                                    <select name="filecheck_artwork_timing" id="filecheck_artwork_timing" style="min-width: 25em;">
+                                        <?php foreach ( Filecheck_Product::timing_options( false ) as $value => $label ) : ?>
+                                            <option value="<?php echo esc_attr( $value ); ?>" <?php selected( $artwork_timing, $value ); ?>><?php echo esc_html( $label ); ?></option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                    <p class="description"><?php esc_html_e( 'Default for all products. Customers who pay without uploading get a link to your Filecheck upload page. Can be overridden per product.', 'filecheck' ); ?></p>
+                                </td>
+                            </tr>
+                            <tr>
+                                <th scope="row"><?php esc_html_e( 'Upload Link in Order Emails', 'filecheck' ); ?></th>
+                                <td>
+                                    <label><input name="filecheck_upload_link_in_emails" type="checkbox" value="yes" <?php checked( $link_in_emails, 'yes' ); ?>> <?php esc_html_e( 'Add an "Upload your artwork" link to WooCommerce order emails when an order still needs artwork', 'filecheck' ); ?></label>
+                                    <p class="description"><?php esc_html_e( 'The link is also shown on the order received page and in My Account. It opens the order on your Filecheck upload page, with no login needed.', 'filecheck' ); ?></p>
                                 </td>
                             </tr>
                         </tbody>
