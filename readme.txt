@@ -4,7 +4,7 @@ Tags: preflight, woocommerce, file validation, print, pdf
 Requires at least: 5.0
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 1.0.6
+Stable tag: 1.0.7
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -135,6 +135,13 @@ Depending on your workflow rules, Filecheck can auto-correct common issues (RGB 
 
 == Changelog ==
 
+= 1.0.7 =
+* New "When to Collect Artwork" setting, store-wide and per product: at checkout (as before), optional or after checkout, or after checkout only. Customers who pay without a file upload it later on your branded Filecheck upload page, where it is checked (and proofed, if your workflow has a proof step).
+* Orders now send lines bought without a file to Filecheck once the order is paid or on hold, so they can be completed on the upload page. Unpaid checkouts are never sent.
+* An "Upload your artwork" link appears in WooCommerce's customer order emails, on the order received page and in My Account while an order still needs artwork. It can be turned off in the plugin settings.
+* Cart and checkout show "Artwork: Upload after checkout" for those products.
+* Products left on "At checkout" work exactly as before.
+
 = 1.0.6 =
 * Fixed order file downloads: processing an order no longer fails with "API returned HTTP code 404". Each item's print-ready files (corrected where Filecheck fixed them, otherwise as uploaded) are saved to the order.
 
@@ -171,6 +178,9 @@ Depending on your workflow rules, Filecheck can auto-correct common issues (RGB 
 * High-Performance Order Storage (HPOS) compatible.
 
 == Upgrade Notice ==
+
+= 1.0.7 =
+Adds artwork after checkout: customers can pay first and upload their files later from a link in their order email.
 
 = 1.0.6 =
 Fixes order file downloads, which failed with an HTTP 404 note on every order.

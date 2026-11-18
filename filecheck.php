@@ -3,7 +3,7 @@
  * Plugin Name: Filecheck
  * Plugin URI: https://filecheck.io/docs/tutorials/wordpress-installation
  * Description: Print preflight for WooCommerce. Embeds the Filecheck Element on product pages to validate customer artwork (resolution, bleed, CMYK, fonts) as it is uploaded, keeps Add to Cart locked until every file passes, and delivers print-ready output files to the order.
- * Version: 1.0.6
+ * Version: 1.0.7
  * Author: Print.App ApS
  * Author URI: https://filecheck.io
  * Text Domain: filecheck
@@ -19,7 +19,7 @@
 defined( 'ABSPATH' ) || exit;
 
 // Define plugin constants
-define( 'FILECHECK_VERSION', '1.0.6' );
+define( 'FILECHECK_VERSION', '1.0.7' );
 define( 'FILECHECK_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'FILECHECK_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 define( 'FILECHECK_PLUGIN_BASENAME', plugin_basename( __FILE__ ) );
